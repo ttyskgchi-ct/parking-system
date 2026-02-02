@@ -92,7 +92,7 @@ function App() {
       .update({
         car_name: formData.name, color: formData.color, status: formData.status,
         plate: formData.plate, car_manager: formData.carManager,
-        entry_manager: formData.entryManager, entry_date: formData.entry_date, memo: formData.memo
+        entry_manager: formData.entryManager, entry_date: formData.entryDate, memo: formData.memo
       })
       .eq('id', targetSlotId);
 
@@ -125,10 +125,9 @@ function App() {
     }
   };
 
-  if (loading && slots.length === 0) return <div style={{ textAlign: 'center', padding: '50px' }}>読み込み中...</div>;
+  if (loading && slots.length === 0) return <div style={{ textAlign: 'center', padding: '50px' }}>データを読み込み中...</div>;
 
   return (
-    // ★CSSリセットと中央寄せをインラインで徹底
     <div style={{ 
       backgroundColor: '#f8f9fa', 
       minHeight: '100vh', 
@@ -138,18 +137,19 @@ function App() {
       alignItems: 'center',
       margin: 0,
       padding: 0,
-      boxSizing: 'border-box'
+      boxSizing: 'border-box',
+      fontFamily: 'sans-serif'
     }}>
       <div style={{ 
         width: '100%', 
-        maxWidth: '800px', 
+        maxWidth: '900px', 
         padding: '20px 10px 120px 10px',
         boxSizing: 'border-box'
       }}>
         
-        <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', color: '#000', margin: '10px 0 20px 0' }}>🚗 駐車場管理システム</h1>
+        <h1 style={{ fontSize: '22px', fontWeight: 'bold', textAlign: 'center', color: '#000', margin: '10px 0 25px 0' }}>🚗 駐車場管理システム</h1>
 
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '25px', gap: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '30px', gap: '15px' }}>
           <button 
             onClick={() => { setIsSelectionMode(false); setSelectedIds([]); }}
             style={{ ...modeButtonStyle, backgroundColor: !isSelectionMode ? '#007bff' : '#ccc' }}
@@ -164,32 +164,43 @@ function App() {
           </button>
         </div>
 
+        {/* 駐車場レイアウト：西・東(1.4) : 縦(1) の比率 */}
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(5, 1fr)', 
-          gap: '6px', 
+          gridTemplateColumns: '1.4fr 1fr 1fr 1fr 1.4fr', 
+          gap: '8px', 
           width: '100%'
         }}>
           {slots.map((slot) => {
             const isSelected = selectedIds.includes(slot.id);
+            const isSide = slot.label.includes('-'); // 西・東の判定
             return (
               <div 
                 key={slot.id} 
                 onClick={() => isSelectionMode ? setSelectedIds(prev => isSelected ? prev.filter(id => id !== slot.id) : [...prev, slot.id]) : openForm(slot)}
                 style={{
-                  minHeight: '75px', 
-                  backgroundColor: isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#eee'),
-                  border: isSelected ? '3px solid #dc3545' : (slot.car ? '2px solid #007bff' : '1px solid #ddd'),
-                  borderRadius: '6px', 
+                  minHeight: '85px', 
+                  backgroundColor: isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#f0f0f0'),
+                  border: isSelected ? '3px solid #dc3545' : (slot.car ? '2px solid #007bff' : '1px solid #ccc'),
+                  borderRadius: '8px', 
                   display: 'flex', 
                   flexDirection: 'column', 
                   alignItems: 'center', 
                   justifyContent: 'center', 
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  padding: '4px',
+                  boxShadow: slot.car ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'
                 }}
               >
                 <strong style={{ fontSize: '10px', color: '#666' }}>{slot.label}</strong>
-                <span style={{ fontWeight: 'bold', fontSize: '11px', color: '#000', textAlign: 'center', wordBreak: 'break-all' }}>
+                <span style={{ 
+                  fontWeight: 'bold', 
+                  fontSize: isSide ? '13px' : '11px', 
+                  color: '#000', 
+                  textAlign: 'center', 
+                  wordBreak: 'break-all',
+                  margin: '2px 0'
+                }}>
                   {slot.car?.name || '空'}
                 </span>
                 {slot.car && <span style={{ color: '#007bff', fontSize: '9px', fontWeight: 'bold' }}>{slot.car.status}</span>}
@@ -255,9 +266,9 @@ function App() {
   )
 }
 
-const modeButtonStyle = { padding: '10px 20px', border: 'none', borderRadius: '25px', color: '#fff', fontWeight: 'bold' as const, fontSize: '13px', cursor: 'pointer' };
+const modeButtonStyle = { padding: '12px 24px', border: 'none', borderRadius: '30px', color: '#fff', fontWeight: 'bold' as const, fontSize: '14px', cursor: 'pointer', transition: '0.2s' };
 const fieldGroupStyle = { display: 'flex', flexDirection: 'column' as const, gap: '4px' };
 const labelStyle = { fontSize: '13px', fontWeight: 'bold' as const, color: '#444' };
-const inputStyle = { width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '16px', outline: 'none', color: '#000', backgroundColor: '#ffffff', boxSizing: 'border-box' as const };
+const inputStyle = { width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '16px', outline: 'none', color: '#000', backgroundColor: '#ffffff', boxSizing: 'border-box' as const };
 
 export default App
