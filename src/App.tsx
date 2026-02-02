@@ -29,7 +29,7 @@ function App() {
   const fetchSlots = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('parking_slots')
         .select('*')
         .order('id', { ascending: true });
