@@ -128,13 +128,22 @@ function App() {
   if (loading && slots.length === 0) return <div style={{ textAlign: 'center', padding: '50px', color: '#000' }}>データを読み込み中...</div>;
 
   return (
-    <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <div style={{ width: '100%', maxWidth: '800px', padding: '10px', paddingBottom: '120px', boxSizing: 'border-box' }}>
+    // ★ 修正：確実に中央に寄せるためのスタイル構成
+    <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', margin: 0, padding: 0 }}>
+      <div style={{ 
+        width: '95%', 
+        maxWidth: '800px', 
+        margin: '0 auto', // 左右の余白を自動にして中央へ
+        padding: '20px 0 120px 0', 
+        display: 'flex', 
+        flexDirection: 'column'
+      }}>
         
-        <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', color: '#000', margin: '15px 0' }}>🚗 駐車場管理システム</h1>
+        <h1 style={{ fontSize: '22px', fontWeight: 'bold', textAlign: 'center', color: '#000', marginBottom: '20px' }}>
+          🚗 駐車場管理システム
+        </h1>
 
-        {/* ボタン名称修正：入力モード / 削除モード */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px', gap: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '25px', gap: '15px' }}>
           <button 
             onClick={() => { setIsSelectionMode(false); setSelectedIds([]); }}
             style={{ ...modeButtonStyle, backgroundColor: !isSelectionMode ? '#007bff' : '#ccc' }}
@@ -149,7 +158,14 @@ function App() {
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
+        {/* ★ 修正：grid自体にwidth: 100%を付与 */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(5, 1fr)', 
+          gap: '8px',
+          width: '100%', 
+          boxSizing: 'border-box'
+        }}>
           {slots.map((slot) => {
             const isSelected = selectedIds.includes(slot.id);
             return (
@@ -157,27 +173,29 @@ function App() {
                 key={slot.id} 
                 onClick={() => isSelectionMode ? setSelectedIds(prev => isSelected ? prev.filter(id => id !== slot.id) : [...prev, slot.id]) : openForm(slot)}
                 style={{
-                  minHeight: '75px', 
-                  backgroundColor: isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#eee'),
-                  border: isSelected ? '3px solid #dc3545' : (slot.car ? '2px solid #007bff' : '1px solid #ddd'),
-                  borderRadius: '6px', 
+                  minHeight: '80px', 
+                  backgroundColor: isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#f0f0f0'),
+                  border: isSelected ? '3px solid #dc3545' : (slot.car ? '2px solid #007bff' : '1px solid #ccc'),
+                  borderRadius: '8px', 
                   display: 'flex', 
                   flexDirection: 'column', 
                   alignItems: 'center', 
                   justifyContent: 'center', 
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  boxShadow: slot.car ? '0 2px 5px rgba(0,0,0,0.1)' : 'none'
                 }}
               >
-                <strong style={{ fontSize: '10px', color: '#666' }}>{slot.label}</strong>
-                <span style={{ fontWeight: 'bold', fontSize: '11px', color: '#000', textAlign: 'center', wordBreak: 'break-all', padding: '0 2px' }}>
+                <strong style={{ fontSize: '10px', color: '#777' }}>{slot.label}</strong>
+                <span style={{ fontWeight: 'bold', fontSize: '12px', color: '#000', textAlign: 'center', wordBreak: 'break-all', padding: '0 4px' }}>
                   {slot.car?.name || '空'}
                 </span>
-                {slot.car && <span style={{ color: '#007bff', fontSize: '9px', marginTop: '2px', fontWeight: 'bold' }}>{slot.car.status}</span>}
+                {slot.car && <span style={{ color: '#007bff', fontSize: '10px', marginTop: '4px', fontWeight: 'bold' }}>{slot.car.status}</span>}
               </div>
             );
           })}
         </div>
 
+        {/* --- モーダル、一括削除バーは前回と同じ（完成しているため） --- */}
         {isModalOpen && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '10px', boxSizing: 'border-box' }}>
             <div style={{ backgroundColor: '#fff', width: '100%', maxWidth: '450px', borderRadius: '15px', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -235,9 +253,9 @@ function App() {
   )
 }
 
-const modeButtonStyle = { padding: '10px 20px', border: 'none', borderRadius: '25px', color: '#fff', fontWeight: 'bold' as const, fontSize: '13px', cursor: 'pointer' };
+const modeButtonStyle = { padding: '12px 25px', border: 'none', borderRadius: '30px', color: '#fff', fontWeight: 'bold' as const, fontSize: '14px', cursor: 'pointer', transition: '0.3s' };
 const fieldGroupStyle = { display: 'flex', flexDirection: 'column' as const, gap: '4px' };
 const labelStyle = { fontSize: '13px', fontWeight: 'bold' as const, color: '#444' };
-const inputStyle = { width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '16px', outline: 'none', color: '#000', backgroundColor: '#ffffff', boxSizing: 'border-box' as const };
+const inputStyle = { width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '16px', outline: 'none', color: '#000', backgroundColor: '#ffffff', boxSizing: 'border-box' as const };
 
 export default App
