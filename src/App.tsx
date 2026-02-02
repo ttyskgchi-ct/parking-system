@@ -92,7 +92,7 @@ function App() {
       .update({
         car_name: formData.name, color: formData.color, status: formData.status,
         plate: formData.plate, car_manager: formData.carManager,
-        entry_manager: formData.entryManager, entry_date: formData.entryDate, memo: formData.memo
+        entry_manager: formData.entryManager, entry_date: formData.entry_date, memo: formData.memo
       })
       .eq('id', targetSlotId);
 
@@ -125,32 +125,29 @@ function App() {
     }
   };
 
-  if (loading && slots.length === 0) return <div style={{ textAlign: 'center', padding: '50px' }}>データを読み込み中...</div>;
+  if (loading && slots.length === 0) return <div style={{ textAlign: 'center', padding: '50px' }}>読み込み中...</div>;
 
   return (
-    /* ★修正: 画面全体のコンテナをフレックスにし、中身を中央に寄せる */
+    // ★CSSリセットと中央寄せをインラインで徹底
     <div style={{ 
       backgroundColor: '#f8f9fa', 
       minHeight: '100vh', 
-      width: '100vw', 
-      display: 'flex', 
-      justifyContent: 'center', 
-      margin: 0, 
+      width: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      margin: 0,
       padding: 0,
-      overflowX: 'hidden'
+      boxSizing: 'border-box'
     }}>
-      {/* ★修正: このコンテンツエリアが「中央」に配置される */}
       <div style={{ 
         width: '100%', 
         maxWidth: '800px', 
-        padding: '20px 10px 120px 10px', 
-        boxSizing: 'border-box',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center' // 内部の要素（タイトルやボタン）も中央寄せ
+        padding: '20px 10px 120px 10px',
+        boxSizing: 'border-box'
       }}>
         
-        <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', color: '#000', margin: '0 0 20px 0' }}>🚗 駐車場管理システム</h1>
+        <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', color: '#000', margin: '10px 0 20px 0' }}>🚗 駐車場管理システム</h1>
 
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '25px', gap: '10px' }}>
           <button 
@@ -167,13 +164,11 @@ function App() {
           </button>
         </div>
 
-        {/* 駐車場グリッド */}
         <div style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(5, 1fr)', 
           gap: '6px', 
-          width: '100%',
-          maxWidth: '800px'
+          width: '100%'
         }}>
           {slots.map((slot) => {
             const isSelected = selectedIds.includes(slot.id);
@@ -203,7 +198,6 @@ function App() {
           })}
         </div>
 
-        {/* モーダル表示中 */}
         {isModalOpen && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '10px', boxSizing: 'border-box' }}>
             <div style={{ backgroundColor: '#fff', width: '100%', maxWidth: '450px', borderRadius: '15px', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -250,7 +244,6 @@ function App() {
           </div>
         )}
 
-        {/* 削除バー */}
         {isSelectionMode && selectedIds.length > 0 && (
           <div style={{ position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)', width: '90%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 5px 25px rgba(0,0,0,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 1000, border: '1px solid #dc3545' }}>
             <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択中</span>
