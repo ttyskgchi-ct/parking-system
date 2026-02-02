@@ -26,7 +26,6 @@ function App() {
     fetchSlots();
   }, []);
 
-  // ★修正ポイント：型エラーが出ないように書き換えた関数
   const fetchSlots = async () => {
     setLoading(true);
     try {
@@ -98,7 +97,7 @@ function App() {
       .eq('id', targetSlotId);
 
     if (error) {
-      alert('保存に失敗しました。: ' + error.message);
+      alert('保存に失敗しました: ' + error.message);
     } else {
       await fetchSlots();
       setIsModalOpen(false);
@@ -106,35 +105,47 @@ function App() {
   };
 
   const handleBulkClear = async () => {
+    if (selectedIds.length === 0) return;
     if (!confirm(`${selectedIds.length}台を選択中。一括で空車にしますか？`)) return;
-    await supabase.from('parking_slots').update({
-      car_name: null, color: null, status: null, plate: null,
-      car_manager: null, entry_manager: null, entry_date: null, memo: null
-    }).in('id', selectedIds);
-    await fetchSlots();
-    setSelectedIds([]);
+
+    const { error } = await supabase
+      .from('parking_slots')
+      .update({
+        car_name: null, color: null, status: null, plate: null,
+        car_manager: null, entry_manager: null, entry_date: null, memo: null
+      })
+      .in('id', selectedIds);
+
+    if (error) {
+      alert('一括削除に失敗しました: ' + error.message);
+    } else {
+      await fetchSlots();
+      setSelectedIds([]);
+      setIsSelectionMode(false);
+    }
   };
 
   if (loading && slots.length === 0) return <div style={{ textAlign: 'center', padding: '50px', color: '#000' }}>データを読み込み中...</div>;
 
   return (
-    <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', display: 'flex', justifyContent: 'center' }}>
+    <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div style={{ width: '100%', maxWidth: '800px', padding: '10px', paddingBottom: '120px', boxSizing: 'border-box' }}>
         
         <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', color: '#000', margin: '15px 0' }}>🚗 駐車場管理システム</h1>
 
+        {/* ボタン名称修正：入力モード / 削除モード */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px', gap: '10px' }}>
           <button 
             onClick={() => { setIsSelectionMode(false); setSelectedIds([]); }}
             style={{ ...modeButtonStyle, backgroundColor: !isSelectionMode ? '#007bff' : '#ccc' }}
           >
-            通常モード
+            入力モード
           </button>
           <button 
             onClick={() => setIsSelectionMode(true)}
-            style={{ ...modeButtonStyle, backgroundColor: isSelectionMode ? '#ffc107' : '#ccc', color: '#000' }}
+            style={{ ...modeButtonStyle, backgroundColor: isSelectionMode ? '#dc3545' : '#ccc', color: isSelectionMode ? '#fff' : '#000' }}
           >
-            選択モード
+            削除モード
           </button>
         </div>
 
@@ -148,7 +159,7 @@ function App() {
                 style={{
                   minHeight: '75px', 
                   backgroundColor: isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#eee'),
-                  border: isSelected ? '3px solid #ffc107' : (slot.car ? '2px solid #007bff' : '1px solid #ddd'),
+                  border: isSelected ? '3px solid #dc3545' : (slot.car ? '2px solid #007bff' : '1px solid #ddd'),
                   borderRadius: '6px', 
                   display: 'flex', 
                   flexDirection: 'column', 
@@ -158,7 +169,7 @@ function App() {
                 }}
               >
                 <strong style={{ fontSize: '10px', color: '#666' }}>{slot.label}</strong>
-                <span style={{ fontWeight: 'bold', fontSize: '12px', color: '#000', textAlign: 'center', wordBreak: 'break-all', padding: '0 2px' }}>
+                <span style={{ fontWeight: 'bold', fontSize: '11px', color: '#000', textAlign: 'center', wordBreak: 'break-all', padding: '0 2px' }}>
                   {slot.car?.name || '空'}
                 </span>
                 {slot.car && <span style={{ color: '#007bff', fontSize: '9px', marginTop: '2px', fontWeight: 'bold' }}>{slot.car.status}</span>}
@@ -170,17 +181,14 @@ function App() {
         {isModalOpen && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '10px', boxSizing: 'border-box' }}>
             <div style={{ backgroundColor: '#fff', width: '100%', maxWidth: '450px', borderRadius: '15px', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              
               <div style={{ padding: '15px 20px', borderBottom: '2px solid #007bff', flexShrink: 0 }}>
                 <h2 style={{ fontSize: '18px', fontWeight: 'bold', color: '#000', margin: 0 }}>
                    車両情報:[{slots.find(s => s.id === targetSlotId)?.label}]
                 </h2>
               </div>
-              
               <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 車名</span><input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={inputStyle} /></div>
                 <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 色</span><input type="text" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} style={inputStyle} /></div>
-                
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 状況</span>
                     <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} style={inputStyle}>
@@ -191,7 +199,6 @@ function App() {
                     <select value={formData.plate} onChange={e => setFormData({...formData, plate: e.target.value})} style={inputStyle}><option value="有">有</option><option value="無">無</option></select>
                   </div>
                 </div>
-                
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 車両担当</span>
                     <select value={formData.carManager} onChange={e => setFormData({...formData, carManager: e.target.value})} style={inputStyle}><option value="社員名１">社員名１</option><option value="社員名２">社員名２</option></select>
@@ -200,7 +207,6 @@ function App() {
                     <select value={formData.entryManager} onChange={e => setFormData({...formData, entryManager: e.target.value})} style={inputStyle}><option value="社員名１">社員名１</option><option value="社員名２">社員名２</option></select>
                   </div>
                 </div>
-
                 <div style={fieldGroupStyle}>
                   <span style={labelStyle}>◻︎ 入庫日</span>
                   <div style={{ display: 'flex', gap: '8px' }}>
@@ -208,10 +214,8 @@ function App() {
                     <button onClick={handleTimestamp} style={{ backgroundColor: '#28a745', color: '#fff', border: 'none', padding: '0 15px', borderRadius: '6px', fontWeight: 'bold' }}>打刻</button>
                   </div>
                 </div>
-
                 <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 備考</span><textarea rows={2} value={formData.memo} onChange={e => setFormData({...formData, memo: e.target.value})} style={{...inputStyle, height: '60px'}} /></div>
               </div>
-
               <div style={{ padding: '15px 20px', backgroundColor: '#f8f9fa', borderTop: '1px solid #ddd', display: 'flex', gap: '10px', flexShrink: 0 }}>
                 <button onClick={handleEntry} style={{ flex: 2, padding: '14px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '18px' }}>保存する</button>
                 <button onClick={() => setIsModalOpen(false)} style={{ flex: 1, padding: '14px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>閉じる</button>
