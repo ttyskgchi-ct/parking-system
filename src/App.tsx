@@ -92,7 +92,7 @@ function App() {
       .update({
         car_name: formData.name, color: formData.color, status: formData.status,
         plate: formData.plate, car_manager: formData.carManager,
-        entry_manager: formData.entryManager, entry_date: formData.entryDate, memo: formData.memo
+        entry_manager: formData.entryManager, entry_date: formData.entry_date, memo: formData.memo
       })
       .eq('id', targetSlotId);
 
@@ -164,16 +164,17 @@ function App() {
           </button>
         </div>
 
-        {/* 駐車場レイアウト：西・東(1.4) : 縦(1) の比率 */}
+        {/* 駐車場レイアウト：西・東(1.8) : 縦(1) で差を際立たせる */}
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: '1.4fr 1fr 1fr 1fr 1.4fr', 
+          gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1.8fr', 
           gap: '8px', 
-          width: '100%'
+          width: '100%',
+          justifyContent: 'center'
         }}>
           {slots.map((slot) => {
             const isSelected = selectedIds.includes(slot.id);
-            const isSide = slot.label.includes('-'); // 西・東の判定
+            const isSide = slot.label.includes('-'); 
             return (
               <div 
                 key={slot.id} 
@@ -189,13 +190,14 @@ function App() {
                   justifyContent: 'center', 
                   cursor: 'pointer',
                   padding: '4px',
-                  boxShadow: slot.car ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'
+                  // 西・東の列には最低幅を持たせて潰れないようにする
+                  minWidth: isSide ? '80px' : '50px'
                 }}
               >
                 <strong style={{ fontSize: '10px', color: '#666' }}>{slot.label}</strong>
                 <span style={{ 
                   fontWeight: 'bold', 
-                  fontSize: isSide ? '13px' : '11px', 
+                  fontSize: isSide ? '14px' : '11px', 
                   color: '#000', 
                   textAlign: 'center', 
                   wordBreak: 'break-all',
@@ -203,7 +205,7 @@ function App() {
                 }}>
                   {slot.car?.name || '空'}
                 </span>
-                {slot.car && <span style={{ color: '#007bff', fontSize: '9px', fontWeight: 'bold' }}>{slot.car.status}</span>}
+                {slot.car && <span style={{ color: '#007bff', fontSize: '10px', fontWeight: 'bold' }}>{slot.car.status}</span>}
               </div>
             );
           })}
@@ -266,7 +268,7 @@ function App() {
   )
 }
 
-const modeButtonStyle = { padding: '12px 24px', border: 'none', borderRadius: '30px', color: '#fff', fontWeight: 'bold' as const, fontSize: '14px', cursor: 'pointer', transition: '0.2s' };
+const modeButtonStyle = { padding: '12px 24px', border: 'none', borderRadius: '30px', color: '#fff', fontWeight: 'bold' as const, fontSize: '14px', cursor: 'pointer' };
 const fieldGroupStyle = { display: 'flex', flexDirection: 'column' as const, gap: '4px' };
 const labelStyle = { fontSize: '13px', fontWeight: 'bold' as const, color: '#444' };
 const inputStyle = { width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '16px', outline: 'none', color: '#000', backgroundColor: '#ffffff', boxSizing: 'border-box' as const };
