@@ -8,14 +8,13 @@ interface CarDetails {
 
 interface Slot {
   id: number; label: string; car: CarDetails | null;
-  editing_id: string | null; // 誰が編集しているかのID
+  editing_id: string | null;
 }
 
-// ブラウザごとに一意のIDを生成または取得
 const getMyId = () => {
   let id = localStorage.getItem('parking_user_id');
   if (!id) {
-    id = 'user-' + Math.random().toString(36).substr(2, 9);
+    id = 'user-' + Math.random().toString(36).substring(2, 11);
     localStorage.setItem('parking_user_id', id);
   }
   return id;
@@ -33,22 +32,6 @@ function App() {
   const [formData, setFormData] = useState<CarDetails>({
     name: '', color: '', status: '在庫', plate: '有', carManager: '社員名１', entryManager: '社員名１', entryDate: '', memo: ''
   });
-
-  useEffect(() => {
-    fetchSlots();
-
-    // ★リアルタイム購読の設定
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'parking_slots' },
-        () => { fetchSlots(); } // 変化があったら再取得
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, []);
 
   const fetchSlots = async () => {
     const { data, error } = await supabase
@@ -72,24 +55,33 @@ function App() {
     }
   };
 
-  // 編集ロックを取得
+  useEffect(() => {
+    fetchSlots();
+    const channel = supabase
+      .channel('parking_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'parking_slots' }, () => {
+        fetchSlots();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   const lockSlot = async (id: number) => {
     const { error } = await supabase
       .from('parking_slots')
       .update({ editing_id: myId, locked_at: new Date().toISOString() })
       .eq('id', id)
-      .is('editing_id', null); // 誰も編集していない時だけ成功する
+      .is('editing_id', null);
     return !error;
   };
 
-  // 編集ロックを解除
   const unlockSlot = async (id: number | null) => {
     if (!id) return;
     await supabase
       .from('parking_slots')
       .update({ editing_id: null, locked_at: null })
       .eq('id', id)
-      .eq('editing_id', myId); // 自分がロックした時だけ解除できる
+      .eq('editing_id', myId);
   };
 
   const openForm = async (slot: Slot) => {
@@ -97,14 +89,12 @@ function App() {
       alert('現在、他の人が入力中です。');
       return;
     }
-
     const success = await lockSlot(slot.id);
     if (!success) {
       alert('タッチの差で他の人が入力を開始しました。');
       fetchSlots();
       return;
     }
-
     setTargetSlotId(slot.id);
     setFormData(slot.car || { name: '', color: '', status: '在庫', plate: '有', carManager: '社員名１', entryManager: '社員名１', entryDate: '', memo: '' });
     setIsModalOpen(true);
@@ -130,7 +120,7 @@ function App() {
         car_name: formData.name, color: formData.color, status: formData.status,
         plate: formData.plate, car_manager: formData.carManager,
         entry_manager: formData.entryManager, entry_date: formData.entryDate, memo: formData.memo,
-        editing_id: null, locked_at: null // 保存と同時にロック解除
+        editing_id: null, locked_at: null
       })
       .eq('id', targetSlotId);
 
@@ -143,14 +133,35 @@ function App() {
     }
   };
 
+  const handleBulkClear = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`${selectedIds.length}台を選択中。一括で空車にしますか？`)) return;
+
+    const { error } = await supabase
+      .from('parking_slots')
+      .update({
+        car_name: null, color: null, status: null, plate: null,
+        car_manager: null, entry_manager: null, entry_date: null, memo: null,
+        editing_id: null, locked_at: null
+      })
+      .in('id', selectedIds);
+
+    if (error) {
+      alert('一括削除に失敗しました');
+    } else {
+      setSelectedIds([]);
+      setIsSelectionMode(false);
+      fetchSlots();
+    }
+  };
+
   if (loading && slots.length === 0) return <div style={{ textAlign: 'center', padding: '50px' }}>読み込み中...</div>;
 
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', fontFamily: 'sans-serif' }}>
       <div style={{ width: '100%', maxWidth: '900px', padding: '20px 10px 120px 10px', boxSizing: 'border-box' }}>
-        
         <h1 style={{ fontSize: '22px', fontWeight: 'bold', textAlign: 'center', color: '#000', margin: '10px 0 25px 0' }}>🚗 駐車場管理システム</h1>
-
+        
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '30px', gap: '15px' }}>
           <button onClick={() => { setIsSelectionMode(false); setSelectedIds([]); }} style={{ ...modeButtonStyle, backgroundColor: !isSelectionMode ? '#007bff' : '#ccc' }}>入力モード</button>
           <button onClick={() => setIsSelectionMode(true)} style={{ ...modeButtonStyle, backgroundColor: isSelectionMode ? '#dc3545' : '#ccc', color: isSelectionMode ? '#fff' : '#000' }}>削除モード</button>
@@ -161,11 +172,17 @@ function App() {
             const isSelected = selectedIds.includes(slot.id);
             const isEditing = slot.editing_id !== null && slot.editing_id !== myId;
             const isSide = slot.label.includes('-'); 
-
             return (
               <div 
                 key={slot.id} 
-                onClick={() => isSelectionMode ? (isEditing ? null : setSelectedIds(prev => isSelected ? prev.filter(id => id !== slot.id) : [...prev, slot.id])) : openForm(slot)}
+                onClick={() => {
+                  if (isEditing) return; // 他人が編集中の場合は何もしない
+                  if (isSelectionMode) {
+                    setSelectedIds(prev => isSelected ? prev.filter(id => id !== slot.id) : [...prev, slot.id]);
+                  } else {
+                    openForm(slot);
+                  }
+                }}
                 style={{
                   minHeight: '85px', 
                   backgroundColor: isEditing ? '#ddd' : (isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#f0f0f0')),
@@ -186,6 +203,14 @@ function App() {
             );
           })}
         </div>
+
+        {/* ★ 一括削除ボタン（ここを復活させました） */}
+        {isSelectionMode && selectedIds.length > 0 && (
+          <div style={{ position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)', width: '90%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 5px 25px rgba(0,0,0,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 1000, border: '1px solid #dc3545' }}>
+            <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択中</span>
+            <button onClick={handleBulkClear} style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '12px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>一括削除</button>
+          </div>
+        )}
 
         {isModalOpen && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '10px', boxSizing: 'border-box' }}>
@@ -218,14 +243,14 @@ function App() {
                   <span style={labelStyle}>◻︎ 入庫日</span>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <input type="text" value={formData.entryDate} readOnly style={{ ...inputStyle, backgroundColor: '#f0f0f0', flex: 1 }} />
-                    <button onClick={handleTimestamp} style={{ backgroundColor: '#28a745', color: '#fff', border: 'none', padding: '0 15px', borderRadius: '6px', fontWeight: 'bold' }}>打刻</button>
+                    <button onClick={handleTimestamp} style={{ backgroundColor: '#28a745', color: '#fff', border: 'none', padding: '0 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>打刻</button>
                   </div>
                 </div>
                 <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 備考</span><textarea rows={2} value={formData.memo} onChange={e => setFormData({...formData, memo: e.target.value})} style={{...inputStyle, height: '60px'}} /></div>
               </div>
               <div style={{ padding: '15px 20px', backgroundColor: '#f8f9fa', borderTop: '1px solid #ddd', display: 'flex', gap: '10px' }}>
-                <button onClick={handleEntry} style={{ flex: 2, padding: '14px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '18px' }}>保存する</button>
-                <button onClick={handleCloseModal} style={{ flex: 1, padding: '14px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>閉じる</button>
+                <button onClick={handleEntry} style={{ flex: 2, padding: '14px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '18px', cursor: 'pointer' }}>保存する</button>
+                <button onClick={handleCloseModal} style={{ flex: 1, padding: '14px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>閉じる</button>
               </div>
             </div>
           </div>
