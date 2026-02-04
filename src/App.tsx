@@ -113,7 +113,7 @@ function App() {
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif', margin: 0, padding: 0 }}>
       
-      {/* 1. タイトルエリア */}
+      {/* 1. タイトル復活 */}
       <div style={{ backgroundColor: '#fff', padding: '15px 0' }}>
         <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: 0 }}>🚗 駐車場管理システム</h1>
       </div>
@@ -130,11 +130,11 @@ function App() {
       <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 160px 10px' }}>
         {isMoveMode && (
           <div style={{ textAlign: 'center', marginBottom: '15px', backgroundColor: '#fff3cd', padding: '12px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid #ffeeba' }}>
-            {!moveSourceId ? "【移動元の車】を選択" : "【移動先の場所】を選択"}
+            {!moveSourceId ? "【移動元の車】を選択してください" : "【移動先の場所】を選択してください"}
           </div>
         )}
 
-        {/* 3. 横長レイアウト復旧 (西・東を1.8frで設定) */}
+        {/* 3. オブジェクトの幅（西・東が広い）を復活 */}
         <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1.8fr', gap: '8px' }}>
           {slots.map((slot) => {
             const isEditing = slot.editing_id !== null && slot.editing_id !== myId;
@@ -173,7 +173,7 @@ function App() {
         </div>
       </div>
 
-      {/* 4. モーダル項目タイトルと打刻機能を完全復旧 */}
+      {/* 4. 入力項目のタイトルと全項目を復旧 */}
       {isModalOpen && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
@@ -217,11 +217,10 @@ function App() {
           </div>
         </div>
       )}
-      
-      {/* 削除実行バー */}
+
       {isSelectionMode && selectedIds.length > 0 && (
         <div style={floatingBarStyle}>
-          <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択中</span>
+          <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択</span>
           <button onClick={handleBulkClear} style={bulkDeleteButtonStyle}>削除実行</button>
         </div>
       )}
@@ -229,12 +228,17 @@ function App() {
   );
 }
 
-// --- スタイル定義 (ビルドエラー回避のため未使用のものを削除) ---
 const navButtonStyle = { flex: 1, padding: '12px 0', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '13px', cursor: 'pointer' };
 const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #dc3545' };
 const bulkDeleteButtonStyle = { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' };
 const modalOverlayStyle = { position: 'fixed' as const, top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '10px' };
-const modalContentStyle = { backgroundColor: '#fff', width: '100%', maxWidth: '450px', borderRadius: '15px', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' };
+
+// ↓ ここを string ではなく column 固定にして型エラーを回避
+const modalContentStyle = { 
+  backgroundColor: '#fff', width: '100%', maxWidth: '450px', borderRadius: '15px', 
+  maxHeight: '95vh', display: 'flex', flexDirection: 'column' as const, overflow: 'hidden' 
+};
+
 const fieldGroupStyle = { display: 'flex', flexDirection: 'column' as const, gap: '4px' };
 const labelStyle = { fontSize: '13px', fontWeight: 'bold' as const, color: '#444' };
 const inputStyle = { width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '16px', boxSizing: 'border-box' as const };
