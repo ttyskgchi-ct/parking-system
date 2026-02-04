@@ -11,6 +11,15 @@ interface Slot {
   editing_id: string | null;
 }
 
+const STAFF_LIST = [
+  "岡﨑 有功", "森岡 央行", "岡本 康一", "岡本 慎平", "谷本 貢一",
+  "朝栄 拓海", "亀島 大夢", "淺野 佳菜子", "坪井 美佳", "杉山 詩織",
+  "難波 成美", "平井 旭", "中村 俊也", "岸戸 彪我", "藤田 陸",
+  "藤田 佳代", "福家 君佳", "安達 未来", "田中 美夕日", "平山 暁美",
+  "松本 由香", "高下 ゆかり", "松浦 広司", "平塚 円", "坂口 達哉",
+  "藤井 武司", "上山 紀昭"
+];
+
 const getMyId = () => {
   let id = localStorage.getItem('parking_user_id');
   if (!id) {
@@ -30,13 +39,13 @@ function App() {
   const [isMoveMode, setIsMoveMode] = useState(false); 
   const [moveSourceId, setMoveSourceId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // 車両プール（一時保管）用
   const [pooledCar, setPooledCar] = useState<CarDetails | null>(null);
 
-  const [formData, setFormData] = useState<CarDetails>({
-    name: '', color: '', status: '在庫', plate: '有', carManager: '社員名１', entryManager: '社員名１', entryDate: '', memo: ''
-  });
+  const initialFormData: CarDetails = {
+    name: '', color: '', status: '在庫', plate: '有', carManager: '', entryManager: '', entryDate: '', memo: ''
+  };
+
+  const [formData, setFormData] = useState<CarDetails>(initialFormData);
 
   const fetchSlots = useCallback(async () => {
     const { data, error } = await supabase.from('parking_slots').select('*').order('id', { ascending: true });
@@ -45,8 +54,8 @@ function App() {
         id: d.id, label: d.label, editing_id: d.editing_id,
         car: d.car_name ? {
           name: d.car_name, color: d.color, status: d.status,
-          plate: d.plate, carManager: d.car_manager,
-          entryManager: d.entry_manager, entryDate: d.entry_date, memo: d.memo
+          plate: d.plate, carManager: d.car_manager || '',
+          entryManager: d.entry_manager || '', entryDate: d.entry_date, memo: d.memo
         } : null
       }));
       setSlots(formatted);
@@ -75,41 +84,31 @@ function App() {
     fetchSlots();
   };
 
-  // 車両移動ロジック
   const handleMove = async (toId: number) => {
     const sourceSlot = slots.find(s => s.id === moveSourceId);
     const targetSlot = slots.find(s => s.id === toId);
     if (!sourceSlot || !sourceSlot.car) return;
 
-    // もし移動先に車がいたらプールに送る
-    if (targetSlot?.car) {
-      setPooledCar(targetSlot.car);
-    }
+    if (targetSlot?.car) setPooledCar(targetSlot.car);
 
-    // 移動先を更新
     await supabase.from('parking_slots').update({
       car_name: sourceSlot.car.name, color: sourceSlot.car.color, status: sourceSlot.car.status,
       plate: sourceSlot.car.plate, car_manager: sourceSlot.car.carManager,
-      entry_manager: sourceSlot.car.entryManager, entry_date: sourceSlot.car.entryDate, // 入庫日は維持
+      entry_manager: sourceSlot.car.entryManager, entry_date: sourceSlot.car.entryDate,
       memo: sourceSlot.car.memo, editing_id: null
     }).eq('id', toId);
 
-    // 移動元を空にする
     await supabase.from('parking_slots').update({
       car_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null, editing_id: null
     }).eq('id', moveSourceId);
 
     setMoveSourceId(null);
-    // setIsMoveMode(false); // ← ここをコメントアウトして継続させる
     fetchSlots();
   };
 
-  // プールした車をマスに配置
   const handlePlacePooledCar = async (toId: number) => {
     if (!pooledCar) return;
     const targetSlot = slots.find(s => s.id === toId);
-    
-    // 配置先に車がいる場合は入れ替え
     const nextPooledCar = targetSlot?.car || null;
 
     await supabase.from('parking_slots').update({
@@ -129,7 +128,7 @@ function App() {
     }
     await supabase.from('parking_slots').update({ editing_id: myId }).eq('id', slot.id);
     setTargetSlotId(slot.id);
-    setFormData(slot.car || { name: '', color: '', status: '在庫', plate: '有', carManager: '社員名１', entryManager: '社員名１', entryDate: '', memo: '' });
+    setFormData(slot.car || initialFormData);
     setIsModalOpen(true);
   };
 
@@ -199,11 +198,9 @@ function App() {
                 key={slot.id} 
                 onClick={() => {
                   if (isMoveMode) {
-                    if (pooledCar) {
-                      handlePlacePooledCar(slot.id);
-                    } else if (!moveSourceId && slot.car) {
-                      setMoveSourceId(slot.id);
-                    } else if (moveSourceId) {
+                    if (pooledCar) handlePlacePooledCar(slot.id);
+                    else if (!moveSourceId && slot.car) setMoveSourceId(slot.id);
+                    else if (moveSourceId) {
                        if (moveSourceId === slot.id) setMoveSourceId(null);
                        else handleMove(slot.id);
                     }
@@ -229,7 +226,6 @@ function App() {
         </div>
       </div>
 
-      {/* 車両プール（一時保管）バー */}
       {isMoveMode && pooledCar && (
         <div style={poolBarStyle}>
           <div style={{ flex: 1 }}>
@@ -249,24 +245,43 @@ function App() {
             <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 車名</span><input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={inputStyle} /></div>
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 色</span><input type="text" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} style={inputStyle} /></div>
+              
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 状況</span>
                   <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} style={inputStyle}>
                     {['売約済(小売)','売約済(AA/業販)','在庫','AA行き','解体予定','代車','レンタカー','車検預かり','整備預かり','その他'].map(v => <option key={v} value={v}>{v}</option>)}
                   </select>
                 </div>
-                <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ プレート</span>
-                  <select value={formData.plate} onChange={e => setFormData({...formData, plate: e.target.value})} style={inputStyle}><option value="有">有</option><option value="無">無</option></select>
+                
+                {/* プレート有無をラジオボタンに変更 */}
+                <div style={fieldGroupStyle}>
+                  <span style={labelStyle}>◻︎ プレート</span>
+                  <div style={{ display: 'flex', gap: '20px', padding: '10px 0' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '16px' }}>
+                      <input type="radio" name="plate" value="有" checked={formData.plate === '有'} onChange={e => setFormData({...formData, plate: e.target.value})} style={{ marginRight: '8px', transform: 'scale(1.2)' }} /> 有
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '16px' }}>
+                      <input type="radio" name="plate" value="無" checked={formData.plate === '無'} onChange={e => setFormData({...formData, plate: e.target.value})} style={{ marginRight: '8px', transform: 'scale(1.2)' }} /> 無
+                    </label>
+                  </div>
                 </div>
               </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 車両担当</span>
-                  <select value={formData.carManager} onChange={e => setFormData({...formData, carManager: e.target.value})} style={inputStyle}><option value="社員名１">社員名１</option><option value="社員名２">社員名２</option></select>
+                  <select value={formData.carManager} onChange={e => setFormData({...formData, carManager: e.target.value})} style={inputStyle}>
+                    <option value=""></option>
+                    {STAFF_LIST.map(name => <option key={name} value={name}>{name}</option>)}
+                  </select>
                 </div>
                 <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 入庫担当</span>
-                  <select value={formData.entryManager} onChange={e => setFormData({...formData, entryManager: e.target.value})} style={inputStyle}><option value="社員名１">社員名１</option><option value="社員名２">社員名２</option></select>
+                  <select value={formData.entryManager} onChange={e => setFormData({...formData, entryManager: e.target.value})} style={inputStyle}>
+                    <option value=""></option>
+                    {STAFF_LIST.map(name => <option key={name} value={name}>{name}</option>)}
+                  </select>
                 </div>
               </div>
+
               <div style={fieldGroupStyle}>
                 <span style={labelStyle}>◻︎ 入庫日</span>
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -298,11 +313,8 @@ const navButtonStyle = { flex: 1, padding: '12px 0', border: '1px solid #ddd', b
 const forceUnlockButtonStyle = { position: 'absolute' as const, right: '15px', top: '50%', transform: 'translateY(-50%)', padding: '8px', backgroundColor: 'transparent', border: 'none', color: '#ddd', fontSize: '18px', cursor: 'pointer' };
 const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #dc3545' };
 const bulkDeleteButtonStyle = { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' };
-
-// 車両プールバーのスタイル
 const poolBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#e3f2fd', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '2px solid #2196f3' };
 const poolDeleteButtonStyle = { backgroundColor: '#666', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' };
-
 const modalOverlayStyle = { position: 'fixed' as const, top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '10px' };
 const modalContentStyle = { backgroundColor: '#fff', width: '100%', maxWidth: '450px', borderRadius: '15px', maxHeight: '95vh', display: 'flex', flexDirection: 'column' as const, overflow: 'hidden' };
 const fieldGroupStyle = { display: 'flex', flexDirection: 'column' as const, gap: '4px' };
