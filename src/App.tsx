@@ -53,7 +53,6 @@ function App() {
 
   useEffect(() => {
     fetchSlots();
-    // リアルタイム購読（INSERT, UPDATE, DELETEすべてに対応）
     const channel = supabase.channel('schema-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'parking_slots' }, () => {
         fetchSlots();
@@ -135,7 +134,13 @@ function App() {
       
       <div style={{ backgroundColor: '#fff', padding: '15px 0', position: 'relative' }}>
         <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: 0 }}>🚗 駐車場管理システム</h1>
-        <button onClick={handleForceUnlockAll} style={forceUnlockButtonStyle}>解除</button>
+        <button 
+          onClick={handleForceUnlockAll} 
+          style={forceUnlockButtonStyle}
+          title="全ロック解除"
+        >
+          ⚙
+        </button>
       </div>
 
       <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, padding: '10px' }}>
@@ -241,7 +246,23 @@ function App() {
 }
 
 const navButtonStyle = { flex: 1, padding: '12px 0', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '13px', cursor: 'pointer' };
-const forceUnlockButtonStyle = { position: 'absolute' as const, right: '15px', top: '15px', padding: '5px 10px', backgroundColor: '#f8f9fa', border: '1px solid #ddd', borderRadius: '5px', fontSize: '12px', cursor: 'pointer' };
+
+const forceUnlockButtonStyle = { 
+  position: 'absolute' as const, 
+  right: '15px', 
+  top: '50%', 
+  transform: 'translateY(-50%)',
+  padding: '8px', 
+  backgroundColor: 'transparent', 
+  border: 'none', 
+  color: '#ddd', // さらに入念に薄いグレーに調整
+  fontSize: '18px', 
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
+};
+
 const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #dc3545' };
 const bulkDeleteButtonStyle = { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' };
 const modalOverlayStyle = { position: 'fixed' as const, top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '10px' };
