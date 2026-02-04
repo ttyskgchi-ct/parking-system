@@ -46,7 +46,10 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [pooledCar, setPooledCar] = useState<CarDetails | null>(null);
 
-  // 状況(status)も初期値を空白に設定
+  // フィルター用ステート
+  const [filterManager, setFilterManager] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+
   const initialFormData: CarDetails = {
     name: '', color: '', status: '', plate: '有', carManager: '', entryManager: '', entryDate: '', memo: ''
   };
@@ -94,20 +97,16 @@ function App() {
     const sourceSlot = slots.find(s => s.id === moveSourceId);
     const targetSlot = slots.find(s => s.id === toId);
     if (!sourceSlot || !sourceSlot.car) return;
-
     if (targetSlot?.car) setPooledCar(targetSlot.car);
-
     await supabase.from('parking_slots').update({
       car_name: sourceSlot.car.name, color: sourceSlot.car.color, status: sourceSlot.car.status,
       plate: sourceSlot.car.plate, car_manager: sourceSlot.car.carManager,
       entry_manager: sourceSlot.car.entryManager, entry_date: sourceSlot.car.entryDate,
       memo: sourceSlot.car.memo, editing_id: null
     }).eq('id', toId);
-
     await supabase.from('parking_slots').update({
       car_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null, editing_id: null
     }).eq('id', moveSourceId);
-
     setMoveSourceId(null);
     fetchSlots();
   };
@@ -116,14 +115,12 @@ function App() {
     if (!pooledCar) return;
     const targetSlot = slots.find(s => s.id === toId);
     const nextPooledCar = targetSlot?.car || null;
-
     await supabase.from('parking_slots').update({
       car_name: pooledCar.name, color: pooledCar.color, status: pooledCar.status,
       plate: pooledCar.plate, car_manager: pooledCar.carManager,
       entry_manager: pooledCar.entryManager, entry_date: pooledCar.entryDate,
       memo: pooledCar.memo, editing_id: null
     }).eq('id', toId);
-
     setPooledCar(nextPooledCar);
     fetchSlots();
   };
@@ -175,10 +172,29 @@ function App() {
       </div>
 
       <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, padding: '10px' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto' }}>
+        {/* モード切替ボタン */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto 10px auto' }}>
           <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(false); setSelectedIds([]); setMoveSourceId(null); setPooledCar(null); }} style={{ ...navButtonStyle, backgroundColor: (!isSelectionMode && !isMoveMode) ? '#007bff' : '#f8f9fa', color: (!isSelectionMode && !isMoveMode) ? '#fff' : '#333' }}>入力</button>
           <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(true); setSelectedIds([]); setMoveSourceId(null); }} style={{ ...navButtonStyle, backgroundColor: isMoveMode ? '#ffc107' : '#f8f9fa', color: '#000' }}>移動</button>
           <button onClick={() => { setIsSelectionMode(true); setIsMoveMode(false); setMoveSourceId(null); setPooledCar(null); }} style={{ ...navButtonStyle, backgroundColor: isSelectionMode ? '#dc3545' : '#f8f9fa', color: isSelectionMode ? '#fff' : '#333' }}>削除</button>
+        </div>
+
+        {/* フィルターセクション */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', maxWidth: '600px', margin: '0 auto', padding: '5px 0' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <span style={{ fontSize: '10px', position: 'absolute', top: '-12px', left: '5px', color: '#666' }}>車両担当で絞り込み</span>
+            <select value={filterManager} onChange={(e) => setFilterManager(e.target.value)} style={filterSelectStyle}>
+              <option value="">全員表示</option>
+              {STAFF_LIST.map(name => <option key={name} value={name}>{name}</option>)}
+            </select>
+          </div>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <span style={{ fontSize: '10px', position: 'absolute', top: '-12px', left: '5px', color: '#666' }}>状況で絞り込み</span>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={filterSelectStyle}>
+              <option value="">全状況表示</option>
+              {STATUS_LIST.map(status => <option key={status} value={status}>{status}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -199,6 +215,11 @@ function App() {
             const isSelected = selectedIds.includes(slot.id);
             const isSide = slot.label.includes('-'); 
 
+            // フィルター判定
+            const matchManager = filterManager === '' || slot.car?.carManager === filterManager;
+            const matchStatus = filterStatus === '' || slot.car?.status === filterStatus;
+            const isHighlighted = (filterManager !== '' || filterStatus !== '') && matchManager && matchStatus && slot.car;
+
             return (
               <div 
                 key={slot.id} 
@@ -216,9 +237,10 @@ function App() {
                 }}
                 style={{
                   minHeight: '85px', borderRadius: '8px', border: '1px solid #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                  backgroundColor: isEditing ? '#ffe5e5' : (isMoveSource ? '#ffc107' : (isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#f0f0f0'))),
-                  borderColor: isEditing ? '#dc3545' : (isMoveSource ? '#ff9800' : (isSelected ? '#dc3545' : (slot.car ? '#007bff' : '#ccc'))),
-                  borderWidth: (isMoveSource || isSelected || isEditing) ? '3px' : '1px'
+                  backgroundColor: isEditing ? '#ffe5e5' : (isHighlighted ? '#e3f2fd' : (isMoveSource ? '#ffc107' : (isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#f0f0f0')))),
+                  borderColor: isEditing ? '#dc3545' : (isHighlighted ? '#007bff' : (isMoveSource ? '#ff9800' : (isSelected ? '#dc3545' : (slot.car ? '#007bff' : '#ccc')))),
+                  borderWidth: (isMoveSource || isSelected || isEditing || isHighlighted) ? '3px' : '1px',
+                  boxShadow: isHighlighted ? '0 0 10px rgba(0,123,255,0.4)' : 'none'
                 }}
               >
                 <span style={{ fontSize: '10px', color: '#666' }}>{slot.label}</span>
@@ -232,6 +254,7 @@ function App() {
         </div>
       </div>
 
+      {/* 以下、モーダルやバーは前回と同様 */}
       {isMoveMode && pooledCar && (
         <div style={poolBarStyle}>
           <div style={{ flex: 1 }}>
@@ -251,7 +274,6 @@ function App() {
             <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 車名</span><input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={inputStyle} /></div>
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 色</span><input type="text" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} style={inputStyle} /></div>
-              
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 状況</span>
                   <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} style={inputStyle}>
@@ -259,20 +281,14 @@ function App() {
                     {STATUS_LIST.map(v => <option key={v} value={v}>{v}</option>)}
                   </select>
                 </div>
-                
                 <div style={fieldGroupStyle}>
                   <span style={labelStyle}>◻︎ プレート</span>
                   <div style={{ display: 'flex', gap: '20px', padding: '10px 0' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '16px' }}>
-                      <input type="radio" name="plate" value="有" checked={formData.plate === '有'} onChange={e => setFormData({...formData, plate: e.target.value})} style={{ marginRight: '8px', transform: 'scale(1.2)' }} /> 有
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '16px' }}>
-                      <input type="radio" name="plate" value="無" checked={formData.plate === '無'} onChange={e => setFormData({...formData, plate: e.target.value})} style={{ marginRight: '8px', transform: 'scale(1.2)' }} /> 無
-                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '16px' }}><input type="radio" name="plate" value="有" checked={formData.plate === '有'} onChange={e => setFormData({...formData, plate: e.target.value})} style={{ marginRight: '8px' }} /> 有</label>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '16px' }}><input type="radio" name="plate" value="無" checked={formData.plate === '無'} onChange={e => setFormData({...formData, plate: e.target.value})} style={{ marginRight: '8px' }} /> 無</label>
                   </div>
                 </div>
               </div>
-
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 車両担当</span>
                   <select value={formData.carManager} onChange={e => setFormData({...formData, carManager: e.target.value})} style={inputStyle}>
@@ -287,19 +303,18 @@ function App() {
                   </select>
                 </div>
               </div>
-
               <div style={fieldGroupStyle}>
                 <span style={labelStyle}>◻︎ 入庫日</span>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input type="text" value={formData.entryDate} readOnly style={{ ...inputStyle, backgroundColor: '#f0f0f0', flex: 1 }} />
-                  <button onClick={() => setFormData({...formData, entryDate: getNowTimestamp()})} style={{ backgroundColor: '#28a745', color: '#fff', border: 'none', padding: '0 12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>打刻</button>
+                  <button onClick={() => setFormData({...formData, entryDate: getNowTimestamp()})} style={{ backgroundColor: '#28a745', color: '#fff', border: 'none', padding: '0 12px', borderRadius: '6px', fontWeight: 'bold' }}>打刻</button>
                 </div>
               </div>
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 備考</span><textarea rows={2} value={formData.memo} onChange={e => setFormData({...formData, memo: e.target.value})} style={{...inputStyle, height: '60px'}} /></div>
             </div>
             <div style={{ padding: '15px 20px', backgroundColor: '#f8f9fa', borderTop: '1px solid #ddd', display: 'flex', gap: '10px' }}>
-              <button onClick={handleEntry} style={{ flex: 2, padding: '14px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '18px', cursor: 'pointer' }}>保存する</button>
-              <button onClick={closeModal} style={{ flex: 1, padding: '14px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>閉じる</button>
+              <button onClick={handleEntry} style={{ flex: 2, padding: '14px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '18px' }}>保存する</button>
+              <button onClick={closeModal} style={{ flex: 1, padding: '14px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px' }}>閉じる</button>
             </div>
           </div>
         </div>
@@ -315,7 +330,17 @@ function App() {
   );
 }
 
-// スタイル定義 (変更なし)
+// フィルタースタイル追加
+const filterSelectStyle = {
+  width: '100%',
+  padding: '10px',
+  borderRadius: '8px',
+  border: '1px solid #ccc',
+  fontSize: '13px',
+  backgroundColor: '#f8f9fa',
+  cursor: 'pointer'
+};
+
 const navButtonStyle = { flex: 1, padding: '12px 0', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '13px', cursor: 'pointer' };
 const forceUnlockButtonStyle = { position: 'absolute' as const, right: '15px', top: '50%', transform: 'translateY(-50%)', padding: '8px', backgroundColor: 'transparent', border: 'none', color: '#ddd', fontSize: '18px', cursor: 'pointer' };
 const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #dc3545' };
