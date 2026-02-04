@@ -1,7 +1,6 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from './supabaseClient'
 
-// 車両詳細の型定義を復旧
 interface CarDetails {
   name: string; color: string; status: string; plate: string;
   carManager: string; entryManager: string; entryDate: string; memo: string;
@@ -36,27 +35,27 @@ function App() {
     name: '', color: '', status: '在庫', plate: '有', carManager: '社員名１', entryManager: '社員名１', entryDate: '', memo: ''
   });
 
-  const fetchSlots = async () => {
+  const fetchSlots = useCallback(async () => {
     const { data, error } = await supabase.from('parking_slots').select('*').order('id', { ascending: true });
     if (!error && data) {
       const formatted: Slot[] = data.map(d => ({
         id: d.id, label: d.label, editing_id: d.editing_id,
         car: d.car_name ? {
           name: d.car_name, color: d.color, status: d.status,
-          plate: d.plate, car_manager: d.car_manager,
-          entry_manager: d.entry_manager, entry_date: d.entry_date, memo: d.memo
+          plate: d.plate, carManager: d.car_manager,
+          entryManager: d.entry_manager, entryDate: d.entry_date, memo: d.memo
         } : null
       }));
       setSlots(formatted);
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchSlots();
     const channel = supabase.channel('parking_realtime').on('postgres_changes', { event: '*', schema: 'public', table: 'parking_slots' }, () => { fetchSlots(); }).subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [fetchSlots]);
 
   const getNowTimestamp = () => {
     const now = new Date();
@@ -114,12 +113,12 @@ function App() {
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif', margin: 0, padding: 0 }}>
       
-      {/* --- タイトルエリア --- */}
-      <div style={{ backgroundColor: '#fff', padding: '20px 0 10px 0' }}>
-        <h1 style={{ fontSize: '22px', fontWeight: 'bold', textAlign: 'center', margin: 0 }}>🚗 駐車場管理システム</h1>
+      {/* 1. タイトルエリア */}
+      <div style={{ backgroundColor: '#fff', padding: '15px 0' }}>
+        <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: 0 }}>🚗 駐車場管理システム</h1>
       </div>
 
-      {/* --- 操作メニュー --- */}
+      {/* 2. 操作メニュー（固定） */}
       <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, padding: '10px' }}>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto' }}>
           <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(false); setSelectedIds([]); setMoveSourceId(null); }} style={{ ...navButtonStyle, backgroundColor: (!isSelectionMode && !isMoveMode) ? '#007bff' : '#f8f9fa', color: (!isSelectionMode && !isMoveMode) ? '#fff' : '#333' }}>入力</button>
@@ -131,17 +130,17 @@ function App() {
       <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 160px 10px' }}>
         {isMoveMode && (
           <div style={{ textAlign: 'center', marginBottom: '15px', backgroundColor: '#fff3cd', padding: '12px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid #ffeeba' }}>
-            {!moveSourceId ? "【移動元の車】を選択してください" : "【移動先の場所】を選択してください"}
+            {!moveSourceId ? "【移動元の車】を選択" : "【移動先の場所】を選択"}
           </div>
         )}
 
-        {/* --- 駐車場レイアウト (西・東を1.8frで幅広に設定) --- */}
+        {/* 3. 横長レイアウト復旧 (西・東を1.8frで設定) */}
         <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1.8fr', gap: '8px' }}>
           {slots.map((slot) => {
             const isEditing = slot.editing_id !== null && slot.editing_id !== myId;
             const isMoveSource = moveSourceId === slot.id;
             const isSelected = selectedIds.includes(slot.id);
-            const isSide = slot.label.includes('-'); // 西・東判定
+            const isSide = slot.label.includes('-'); 
 
             return (
               <div 
@@ -174,15 +173,7 @@ function App() {
         </div>
       </div>
 
-      {/* --- 一括削除バー --- */}
-      {isSelectionMode && selectedIds.length > 0 && (
-        <div style={floatingBarStyle}>
-          <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択中</span>
-          <button onClick={handleBulkClear} style={bulkDeleteButtonStyle}>削除実行</button>
-        </div>
-      )}
-
-      {/* --- 入力モーダル (全項目復旧) --- */}
+      {/* 4. モーダル項目タイトルと打刻機能を完全復旧 */}
       {isModalOpen && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
@@ -226,10 +217,19 @@ function App() {
           </div>
         </div>
       )}
+      
+      {/* 削除実行バー */}
+      {isSelectionMode && selectedIds.length > 0 && (
+        <div style={floatingBarStyle}>
+          <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択中</span>
+          <button onClick={handleBulkClear} style={bulkDeleteButtonStyle}>削除実行</button>
+        </div>
+      )}
     </div>
   );
 }
 
+// --- スタイル定義 (ビルドエラー回避のため未使用のものを削除) ---
 const navButtonStyle = { flex: 1, padding: '12px 0', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '13px', cursor: 'pointer' };
 const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #dc3545' };
 const bulkDeleteButtonStyle = { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' };
