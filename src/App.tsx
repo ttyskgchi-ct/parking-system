@@ -46,7 +46,6 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [pooledCar, setPooledCar] = useState<CarDetails | null>(null);
 
-  // フィルター用ステート
   const [filterManager, setFilterManager] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
@@ -91,6 +90,11 @@ function App() {
     if (!confirm('全ての「入力中」状態を強制解除しますか？')) return;
     await supabase.from('parking_slots').update({ editing_id: null }).not('editing_id', 'is', null);
     fetchSlots();
+  };
+
+  const resetFilters = () => {
+    setFilterManager('');
+    setFilterStatus('');
   };
 
   const handleMove = async (toId: number) => {
@@ -172,29 +176,25 @@ function App() {
       </div>
 
       <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, padding: '10px' }}>
-        {/* モード切替ボタン */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto 10px auto' }}>
+        
+        {/* 1段目：フィルタープルダウンとリセット */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto 12px auto' }}>
+          <select value={filterManager} onChange={(e) => setFilterManager(e.target.value)} style={filterSelectStyle}>
+            <option value="">担当者で絞り込み</option>
+            {STAFF_LIST.map(name => <option key={name} value={name}>{name}</option>)}
+          </select>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={filterSelectStyle}>
+            <option value="">状況で絞り込み</option>
+            {STATUS_LIST.map(status => <option key={status} value={status}>{status}</option>)}
+          </select>
+          <button onClick={resetFilters} style={resetButtonStyle}>解除</button>
+        </div>
+
+        {/* 2段目：モード切替ボタン */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto' }}>
           <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(false); setSelectedIds([]); setMoveSourceId(null); setPooledCar(null); }} style={{ ...navButtonStyle, backgroundColor: (!isSelectionMode && !isMoveMode) ? '#007bff' : '#f8f9fa', color: (!isSelectionMode && !isMoveMode) ? '#fff' : '#333' }}>入力</button>
           <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(true); setSelectedIds([]); setMoveSourceId(null); }} style={{ ...navButtonStyle, backgroundColor: isMoveMode ? '#ffc107' : '#f8f9fa', color: '#000' }}>移動</button>
           <button onClick={() => { setIsSelectionMode(true); setIsMoveMode(false); setMoveSourceId(null); setPooledCar(null); }} style={{ ...navButtonStyle, backgroundColor: isSelectionMode ? '#dc3545' : '#f8f9fa', color: isSelectionMode ? '#fff' : '#333' }}>削除</button>
-        </div>
-
-        {/* フィルターセクション */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', maxWidth: '600px', margin: '0 auto', padding: '5px 0' }}>
-          <div style={{ flex: 1, position: 'relative' }}>
-            <span style={{ fontSize: '10px', position: 'absolute', top: '-12px', left: '5px', color: '#666' }}>車両担当で絞り込み</span>
-            <select value={filterManager} onChange={(e) => setFilterManager(e.target.value)} style={filterSelectStyle}>
-              <option value="">全員表示</option>
-              {STAFF_LIST.map(name => <option key={name} value={name}>{name}</option>)}
-            </select>
-          </div>
-          <div style={{ flex: 1, position: 'relative' }}>
-            <span style={{ fontSize: '10px', position: 'absolute', top: '-12px', left: '5px', color: '#666' }}>状況で絞り込み</span>
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={filterSelectStyle}>
-              <option value="">全状況表示</option>
-              {STATUS_LIST.map(status => <option key={status} value={status}>{status}</option>)}
-            </select>
-          </div>
         </div>
       </div>
 
@@ -215,7 +215,6 @@ function App() {
             const isSelected = selectedIds.includes(slot.id);
             const isSide = slot.label.includes('-'); 
 
-            // フィルター判定
             const matchManager = filterManager === '' || slot.car?.carManager === filterManager;
             const matchStatus = filterStatus === '' || slot.car?.status === filterStatus;
             const isHighlighted = (filterManager !== '' || filterStatus !== '') && matchManager && matchStatus && slot.car;
@@ -240,7 +239,7 @@ function App() {
                   backgroundColor: isEditing ? '#ffe5e5' : (isHighlighted ? '#e3f2fd' : (isMoveSource ? '#ffc107' : (isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#f0f0f0')))),
                   borderColor: isEditing ? '#dc3545' : (isHighlighted ? '#007bff' : (isMoveSource ? '#ff9800' : (isSelected ? '#dc3545' : (slot.car ? '#007bff' : '#ccc')))),
                   borderWidth: (isMoveSource || isSelected || isEditing || isHighlighted) ? '3px' : '1px',
-                  boxShadow: isHighlighted ? '0 0 10px rgba(0,123,255,0.4)' : 'none'
+                  boxShadow: isHighlighted ? '0 0 12px rgba(0,123,255,0.5)' : 'none'
                 }}
               >
                 <span style={{ fontSize: '10px', color: '#666' }}>{slot.label}</span>
@@ -254,7 +253,6 @@ function App() {
         </div>
       </div>
 
-      {/* 以下、モーダルやバーは前回と同様 */}
       {isMoveMode && pooledCar && (
         <div style={poolBarStyle}>
           <div style={{ flex: 1 }}>
@@ -330,17 +328,9 @@ function App() {
   );
 }
 
-// フィルタースタイル追加
-const filterSelectStyle = {
-  width: '100%',
-  padding: '10px',
-  borderRadius: '8px',
-  border: '1px solid #ccc',
-  fontSize: '13px',
-  backgroundColor: '#f8f9fa',
-  cursor: 'pointer'
-};
-
+// スタイル定義
+const filterSelectStyle = { flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '13px', backgroundColor: '#f8f9fa', cursor: 'pointer', minWidth: 0 };
+const resetButtonStyle = { padding: '0 15px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold' as const, cursor: 'pointer' };
 const navButtonStyle = { flex: 1, padding: '12px 0', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '13px', cursor: 'pointer' };
 const forceUnlockButtonStyle = { position: 'absolute' as const, right: '15px', top: '50%', transform: 'translateY(-50%)', padding: '8px', backgroundColor: 'transparent', border: 'none', color: '#ddd', fontSize: '18px', cursor: 'pointer' };
 const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #dc3545' };
