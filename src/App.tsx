@@ -27,8 +27,8 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [targetSlotId, setTargetSlotId] = useState<number | null>(null);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [isMoveMode, setIsMoveMode] = useState(false); // ★移動モード状態
-  const [moveSourceId, setMoveSourceId] = useState<number | null>(null); // ★移動元ID
+  const [isMoveMode, setIsMoveMode] = useState(false); 
+  const [moveSourceId, setMoveSourceId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState<CarDetails>({
@@ -57,32 +57,25 @@ function App() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // 現在時刻の打刻文字列を生成
   const getNowTimestamp = () => {
     const now = new Date();
     return `${now.getFullYear()}/${(now.getMonth()+1)}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
   };
 
-  // 移動処理
   const handleMove = async (toId: number) => {
     if (!moveSourceId) return;
     const sourceSlot = slots.find(s => s.id === moveSourceId);
-    const targetSlot = slots.find(s => s.id === toId);
-
     if (!sourceSlot || !sourceSlot.car) return;
-    if (targetSlot?.car && !confirm('移動先に既に車がありますが、上書きしますか？')) return;
-
-    // 1. 移動先にデータをコピー（入庫日は現在時刻に更新）
+    
     const { error: errorAdd } = await supabase.from('parking_slots').update({
       car_name: sourceSlot.car.name, color: sourceSlot.car.color, status: sourceSlot.car.status,
       plate: sourceSlot.car.plate, car_manager: sourceSlot.car.carManager,
-      entry_manager: sourceSlot.car.entryManager, entry_date: getNowTimestamp(), // 自動打刻
+      entry_manager: sourceSlot.car.entryManager, entry_date: getNowTimestamp(),
       memo: sourceSlot.car.memo
     }).eq('id', toId);
 
     if (errorAdd) { alert('移動に失敗しました'); return; }
 
-    // 2. 移動元を空にする
     await supabase.from('parking_slots').update({
       car_name: null, color: null, status: null, plate: null,
       car_manager: null, entry_manager: null, entry_date: null, memo: null
@@ -106,7 +99,7 @@ function App() {
   const openForm = async (slot: Slot) => {
     if (slot.editing_id && slot.editing_id !== myId) { alert('他の人が入力中です'); return; }
     const success = await lockSlot(slot.id);
-    if (!success) { alert('タッチの差で入力を開始されました'); fetchSlots(); return; }
+    if (!success) { alert('他の方が入力中のため開けません'); fetchSlots(); return; }
     setTargetSlotId(slot.id);
     setFormData(slot.car || { name: '', color: '', status: '在庫', plate: '有', carManager: '社員名１', entryManager: '社員名１', entryDate: '', memo: '' });
     setIsModalOpen(true);
@@ -129,23 +122,47 @@ function App() {
     setSelectedIds([]); setIsSelectionMode(false); fetchSlots();
   };
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '50px' }}>読み込み中...</div>;
+  if (loading && slots.length === 0) return <div style={{ textAlign: 'center', padding: '50px' }}>読み込み中...</div>;
 
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', fontFamily: 'sans-serif' }}>
       <div style={{ width: '100%', maxWidth: '900px', padding: '20px 10px 140px 10px', boxSizing: 'border-box' }}>
-        <h1 style={{ fontSize: '22px', fontWeight: 'bold', textAlign: 'center', margin: '10px 0 25px 0' }}>🚗 駐車場管理システム</h1>
+        <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: '10px 0 25px 0' }}>🚗 駐車場管理システム</h1>
         
-        {/* モード切替ボタン */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '30px', gap: '10px', flexWrap: 'wrap' }}>
-          <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(false); setSelectedIds([]); setMoveSourceId(null); }} style={{ ...modeButtonStyle, backgroundColor: (!isSelectionMode && !isMoveMode) ? '#007bff' : '#ccc' }}>入力</button>
-          <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(true); setSelectedIds([]); }} style={{ ...modeButtonStyle, backgroundColor: isMoveMode ? '#ffc107' : '#ccc', color: '#000' }}>移動</button>
-          <button onClick={() => { setIsSelectionMode(true); setIsMoveMode(false); setMoveSourceId(null); }} style={{ ...modeButtonStyle, backgroundColor: isSelectionMode ? '#dc3545' : '#ccc' }}>削除</button>
+        {/* --- モード切替エリア (ここを確実に表示されるよう修正) --- */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          marginBottom: '20px', 
+          gap: '8px', 
+          width: '100%',
+          flexWrap: 'nowrap' // スマホでも1行に収める
+        }}>
+          <button 
+            onClick={() => { setIsSelectionMode(false); setIsMoveMode(false); setSelectedIds([]); setMoveSourceId(null); }} 
+            style={{ ...modeButtonStyle, flex: 1, backgroundColor: (!isSelectionMode && !isMoveMode) ? '#007bff' : '#ffffff', color: (!isSelectionMode && !isMoveMode) ? '#fff' : '#333', border: '1px solid #ccc' }}
+          >
+            入力
+          </button>
+          <button 
+            onClick={() => { setIsSelectionMode(false); setIsMoveMode(true); setSelectedIds([]); setMoveSourceId(null); }} 
+            style={{ ...modeButtonStyle, flex: 1, backgroundColor: isMoveMode ? '#ffc107' : '#ffffff', color: isMoveMode ? '#000' : '#333', border: '1px solid #ccc' }}
+          >
+            移動
+          </button>
+          <button 
+            onClick={() => { setIsSelectionMode(true); setIsMoveMode(false); setMoveSourceId(null); }} 
+            style={{ ...modeButtonStyle, flex: 1, backgroundColor: isSelectionMode ? '#dc3545' : '#ffffff', color: isSelectionMode ? '#fff' : '#333', border: '1px solid #ccc' }}
+          >
+            削除
+          </button>
         </div>
 
-        {isMoveMode && <div style={{ textAlign: 'center', marginBottom: '15px', color: '#856404', backgroundColor: '#fff3cd', padding: '10px', borderRadius: '8px', fontWeight: 'bold' }}>
-          {!moveSourceId ? "【移動元】を選択してください" : "【移動先】を選択してください"}
-        </div>}
+        {isMoveMode && (
+          <div style={{ textAlign: 'center', marginBottom: '15px', color: '#856404', backgroundColor: '#fff3cd', padding: '12px', borderRadius: '8px', fontWeight: 'bold', fontSize: '14px', border: '1px solid #ffeeba' }}>
+            {!moveSourceId ? "【移動させる車】を選択してください" : "【移動先の場所】を選択してください"}
+          </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1.8fr', gap: '8px', width: '100%' }}>
           {slots.map((slot) => {
@@ -174,30 +191,28 @@ function App() {
                 }}
                 style={{
                   minHeight: '85px', 
-                  backgroundColor: isEditing ? '#ddd' : (isMoveSource ? '#ffeb3b' : (isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#f0f0f0'))),
-                  border: isEditing ? '2px dashed #999' : (isMoveSource ? '3px solid #ff9800' : (isSelected ? '3px solid #dc3545' : (slot.car ? '2px solid #007bff' : '1px solid #ccc'))),
+                  backgroundColor: isEditing ? '#ddd' : (isMoveSource ? '#fff3cd' : (isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#f0f0f0'))),
+                  border: isEditing ? '2px dashed #999' : (isMoveSource ? '3px solid #ffc107' : (isSelected ? '3px solid #dc3545' : (slot.car ? '2px solid #007bff' : '1px solid #ccc'))),
                   borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', opacity: isEditing ? 0.7 : 1, padding: '4px'
                 }}
               >
                 <strong style={{ fontSize: '10px', color: '#666' }}>{slot.label}</strong>
-                <span style={{ fontWeight: 'bold', fontSize: isSide ? '14px' : '11px', textAlign: 'center' }}>
+                <span style={{ fontWeight: 'bold', fontSize: isSide ? '13px' : '10px', textAlign: 'center', color: '#000' }}>
                   {isEditing ? '入力中...' : (slot.car?.name || '空')}
                 </span>
-                {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '10px', fontWeight: 'bold' }}>{slot.car.status}</span>}
+                {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '9px', fontWeight: 'bold' }}>{slot.car.status}</span>}
               </div>
             );
           })}
         </div>
 
-        {/* 削除バー */}
         {isSelectionMode && selectedIds.length > 0 && (
           <div style={floatingBarStyle}>
             <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択中</span>
-            <button onClick={handleBulkClear} style={bulkDeleteButtonStyle}>選択した車両を削除</button>
+            <button onClick={handleBulkClear} style={bulkDeleteButtonStyle}>削除実行</button>
           </div>
         )}
 
-        {/* フォームモーダル */}
         {isModalOpen && (
           <div style={modalOverlayStyle}>
             <div style={modalContentStyle}>
@@ -229,7 +244,7 @@ function App() {
                   <span style={labelStyle}>◻︎ 入庫日</span>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <input type="text" value={formData.entryDate} readOnly style={{ ...inputStyle, backgroundColor: '#f0f0f0', flex: 1 }} />
-                    <button onClick={() => setFormData({...formData, entryDate: getNowTimestamp()})} style={{ backgroundColor: '#28a745', color: '#fff', border: 'none', padding: '0 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>打刻</button>
+                    <button onClick={() => setFormData({...formData, entryDate: getNowTimestamp()})} style={{ backgroundColor: '#28a745', color: '#fff', border: 'none', padding: '0 12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>打刻</button>
                   </div>
                 </div>
                 <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 備考</span><textarea rows={2} value={formData.memo} onChange={e => setFormData({...formData, memo: e.target.value})} style={{...inputStyle, height: '60px'}} /></div>
@@ -246,13 +261,13 @@ function App() {
   )
 }
 
-const modeButtonStyle = { padding: '12px 20px', border: 'none', borderRadius: '30px', color: '#fff', fontWeight: 'bold' as const, fontSize: '14px', cursor: 'pointer', minWidth: '80px' };
-const floatingBarStyle = { position: 'fixed' as const, bottom: '30px', left: '50%', transform: 'translateX(-50%)', width: '90%', maxWidth: '450px', backgroundColor: '#fff', padding: '20px', borderRadius: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.25)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 9999, border: '2px solid #dc3545' };
-const bulkDeleteButtonStyle = { backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' };
+const modeButtonStyle = { padding: '10px 5px', borderRadius: '6px', fontWeight: 'bold' as const, fontSize: '14px', cursor: 'pointer' };
+const floatingBarStyle = { position: 'fixed' as const, bottom: '20px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 9999, border: '1px solid #dc3545' };
+const bulkDeleteButtonStyle = { backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' };
 const modalOverlayStyle = { position: 'fixed' as const, top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '10px', boxSizing: 'border-box' as const };
 const modalContentStyle = { backgroundColor: '#fff', width: '100%', maxWidth: '450px', borderRadius: '15px', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' };
 const fieldGroupStyle = { display: 'flex', flexDirection: 'column' as const, gap: '4px' };
 const labelStyle = { fontSize: '13px', fontWeight: 'bold' as const, color: '#444' };
-const inputStyle = { width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '16px', boxSizing: 'border-box' as const };
+const inputStyle = { width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '16px', boxSizing: 'border-box' as const };
 
 export default App
