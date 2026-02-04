@@ -71,11 +71,13 @@ function App() {
       car_name: sourceSlot.car.name, color: sourceSlot.car.color, status: sourceSlot.car.status,
       plate: sourceSlot.car.plate, car_manager: sourceSlot.car.carManager,
       entry_manager: sourceSlot.car.entryManager, entry_date: getNowTimestamp(),
-      memo: sourceSlot.car.memo
+      memo: sourceSlot.car.memo,
+      editing_id: null // 移動時に編集状態もクリア
     }).eq('id', toId);
 
     await supabase.from('parking_slots').update({
-      car_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null
+      car_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null,
+      editing_id: null
     }).eq('id', moveSourceId);
 
     setMoveSourceId(null);
@@ -84,11 +86,29 @@ function App() {
   };
 
   const openForm = async (slot: Slot) => {
-    if (slot.editing_id && slot.editing_id !== myId) { alert('他の方が入力中です'); return; }
-    await supabase.from('parking_slots').update({ editing_id: myId, locked_at: new Date().toISOString() }).eq('id', slot.id).is('editing_id', null);
+    // 他の人が入力中の場合でも、一定時間経過していたり、誤作動の場合は上書き可能にする処理を検討できますが、
+    // まずは「入力中」を確実に解除するボタンをモーダル内に設けるか、クリック時に上書き確認を出します。
+    if (slot.editing_id && slot.editing_id !== myId) {
+       if(!confirm('他の方が入力中ですが、強制的に編集を開始しますか？')) return;
+    }
+    
+    await supabase.from('parking_slots').update({ 
+      editing_id: myId, 
+      locked_at: new Date().toISOString() 
+    }).eq('id', slot.id);
+    
     setTargetSlotId(slot.id);
     setFormData(slot.car || { name: '', color: '', status: '在庫', plate: '有', carManager: '社員名１', entryManager: '社員名１', entryDate: '', memo: '' });
     setIsModalOpen(true);
+  };
+
+  const closeModal = async () => {
+    if (targetSlotId) {
+      await supabase.from('parking_slots').update({ editing_id: null }).eq('id', targetSlotId);
+    }
+    setIsModalOpen(false);
+    setTargetSlotId(null);
+    fetchSlots();
   };
 
   const handleEntry = async () => {
@@ -99,12 +119,17 @@ function App() {
       entry_manager: formData.entryManager, entry_date: formData.entryDate, memo: formData.memo,
       editing_id: null, locked_at: null
     }).eq('id', targetSlotId);
-    setIsModalOpen(false); setTargetSlotId(null); fetchSlots();
+    setIsModalOpen(false);
+    setTargetSlotId(null);
+    fetchSlots();
   };
 
   const handleBulkClear = async () => {
     if (!confirm(`${selectedIds.length}台を削除しますか？`)) return;
-    await supabase.from('parking_slots').update({ car_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null }).in('id', selectedIds);
+    await supabase.from('parking_slots').update({ 
+      car_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null,
+      editing_id: null 
+    }).in('id', selectedIds);
     setSelectedIds([]); setIsSelectionMode(false); fetchSlots();
   };
 
@@ -113,12 +138,10 @@ function App() {
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif', margin: 0, padding: 0 }}>
       
-      {/* 1. タイトル復活 */}
       <div style={{ backgroundColor: '#fff', padding: '15px 0' }}>
         <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: 0 }}>🚗 駐車場管理システム</h1>
       </div>
 
-      {/* 2. 操作メニュー（固定） */}
       <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, padding: '10px' }}>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto' }}>
           <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(false); setSelectedIds([]); setMoveSourceId(null); }} style={{ ...navButtonStyle, backgroundColor: (!isSelectionMode && !isMoveMode) ? '#007bff' : '#f8f9fa', color: (!isSelectionMode && !isMoveMode) ? '#fff' : '#333' }}>入力</button>
@@ -128,13 +151,6 @@ function App() {
       </div>
 
       <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 160px 10px' }}>
-        {isMoveMode && (
-          <div style={{ textAlign: 'center', marginBottom: '15px', backgroundColor: '#fff3cd', padding: '12px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid #ffeeba' }}>
-            {!moveSourceId ? "【移動元の車】を選択してください" : "【移動先の場所】を選択してください"}
-          </div>
-        )}
-
-        {/* 3. オブジェクトの幅（西・東が広い）を復活 */}
         <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1.8fr', gap: '8px' }}>
           {slots.map((slot) => {
             const isEditing = slot.editing_id !== null && slot.editing_id !== myId;
@@ -146,7 +162,6 @@ function App() {
               <div 
                 key={slot.id} 
                 onClick={() => {
-                  if (isEditing) return;
                   if (isMoveMode) {
                     if (!moveSourceId && slot.car) setMoveSourceId(slot.id);
                     else if (moveSourceId) {
@@ -159,13 +174,13 @@ function App() {
                 }}
                 style={{
                   minHeight: '85px', borderRadius: '8px', border: '1px solid #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                  backgroundColor: isEditing ? '#e9ecef' : (isMoveSource ? '#ffc107' : (isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#f0f0f0'))),
-                  borderColor: isMoveSource ? '#ff9800' : (isSelected ? '#dc3545' : (slot.car ? '#007bff' : '#ccc')),
-                  borderWidth: (isMoveSource || isSelected) ? '3px' : '1px'
+                  backgroundColor: isEditing ? '#ffe5e5' : (isMoveSource ? '#ffc107' : (isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#f0f0f0'))),
+                  borderColor: isEditing ? '#dc3545' : (isMoveSource ? '#ff9800' : (isSelected ? '#dc3545' : (slot.car ? '#007bff' : '#ccc'))),
+                  borderWidth: (isMoveSource || isSelected || isEditing) ? '3px' : '1px'
                 }}
               >
                 <span style={{ fontSize: '10px', color: '#666' }}>{slot.label}</span>
-                <span style={{ fontWeight: 'bold', fontSize: isSide ? '14px' : '11px', textAlign: 'center' }}>{isEditing ? '入力中' : (slot.car?.name || '空')}</span>
+                <span style={{ fontWeight: 'bold', fontSize: isSide ? '14px' : '11px', textAlign: 'center' }}>{isEditing ? '誰かが入力中' : (slot.car?.name || '空')}</span>
                 {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '9px', fontWeight: 'bold' }}>{slot.car.status}</span>}
               </div>
             );
@@ -173,7 +188,6 @@ function App() {
         </div>
       </div>
 
-      {/* 4. 入力項目のタイトルと全項目を復旧 */}
       {isModalOpen && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
@@ -212,7 +226,7 @@ function App() {
             </div>
             <div style={{ padding: '15px 20px', backgroundColor: '#f8f9fa', borderTop: '1px solid #ddd', display: 'flex', gap: '10px' }}>
               <button onClick={handleEntry} style={{ flex: 2, padding: '14px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '18px', cursor: 'pointer' }}>保存する</button>
-              <button onClick={() => { supabase.from('parking_slots').update({ editing_id: null }).eq('id', targetSlotId); setIsModalOpen(false); }} style={{ flex: 1, padding: '14px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>閉じる</button>
+              <button onClick={closeModal} style={{ flex: 1, padding: '14px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>閉じる</button>
             </div>
           </div>
         </div>
@@ -232,13 +246,7 @@ const navButtonStyle = { flex: 1, padding: '12px 0', border: '1px solid #ddd', b
 const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #dc3545' };
 const bulkDeleteButtonStyle = { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' };
 const modalOverlayStyle = { position: 'fixed' as const, top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '10px' };
-
-// ↓ ここを string ではなく column 固定にして型エラーを回避
-const modalContentStyle = { 
-  backgroundColor: '#fff', width: '100%', maxWidth: '450px', borderRadius: '15px', 
-  maxHeight: '95vh', display: 'flex', flexDirection: 'column' as const, overflow: 'hidden' 
-};
-
+const modalContentStyle = { backgroundColor: '#fff', width: '100%', maxWidth: '450px', borderRadius: '15px', maxHeight: '95vh', display: 'flex', flexDirection: 'column' as const, overflow: 'hidden' };
 const fieldGroupStyle = { display: 'flex', flexDirection: 'column' as const, gap: '4px' };
 const labelStyle = { fontSize: '13px', fontWeight: 'bold' as const, color: '#444' };
 const inputStyle = { width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '16px', boxSizing: 'border-box' as const };
