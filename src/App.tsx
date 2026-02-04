@@ -111,12 +111,14 @@ function App() {
   if (loading && slots.length === 0) return <div style={{ textAlign: 'center', padding: '50px' }}>読み込み中...</div>;
 
   return (
-    <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif' }}>
+    <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif', margin: 0, padding: 0 }}>
       
-      {/* メニューバー & タイトル */}
-      <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, paddingBottom: '10px' }}>
-        <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: '15px 0' }}>🚗 駐車場管理システム</h1>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto', padding: '0 10px' }}>
+      {/* 1. タイトル復活 */}
+      <h1 style={{ fontSize: '22px', fontWeight: 'bold', textAlign: 'center', padding: '20px 0 10px 0', margin: 0, backgroundColor: '#fff' }}>🚗 駐車場管理システム</h1>
+
+      {/* モード切替ボタン */}
+      <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, padding: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto' }}>
           <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(false); setSelectedIds([]); setMoveSourceId(null); }} style={{ ...navButtonStyle, backgroundColor: (!isSelectionMode && !isMoveMode) ? '#007bff' : '#f8f9fa', color: (!isSelectionMode && !isMoveMode) ? '#fff' : '#333' }}>入力</button>
           <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(true); setSelectedIds([]); setMoveSourceId(null); }} style={{ ...navButtonStyle, backgroundColor: isMoveMode ? '#ffc107' : '#f8f9fa', color: '#000' }}>移動</button>
           <button onClick={() => { setIsSelectionMode(true); setIsMoveMode(false); setMoveSourceId(null); }} style={{ ...navButtonStyle, backgroundColor: isSelectionMode ? '#dc3545' : '#f8f9fa', color: isSelectionMode ? '#fff' : '#333' }}>削除</button>
@@ -126,17 +128,17 @@ function App() {
       <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 160px 10px' }}>
         {isMoveMode && (
           <div style={{ textAlign: 'center', marginBottom: '15px', backgroundColor: '#fff3cd', padding: '12px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid #ffeeba' }}>
-            {!moveSourceId ? "【移動元の車】をタップ" : "【移動先の場所】をタップ"}
+            {!moveSourceId ? "【移動元の車】を選択" : "【移動先の場所】を選択"}
           </div>
         )}
 
-        {/* 駐車場グリッド (横幅を西・東で動的に変更) */}
+        {/* 2. オブジェクトの幅（西・東が広い）を復活 */}
         <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1.8fr', gap: '8px' }}>
           {slots.map((slot) => {
             const isEditing = slot.editing_id !== null && slot.editing_id !== myId;
             const isMoveSource = moveSourceId === slot.id;
             const isSelected = selectedIds.includes(slot.id);
-            const isSide = slot.label.includes('-'); // 西-1, 東-1 判定
+            const isSide = slot.label.includes('-'); 
 
             return (
               <div 
@@ -161,7 +163,7 @@ function App() {
                 }}
               >
                 <span style={{ fontSize: '10px', color: '#666' }}>{slot.label}</span>
-                <span style={{ fontWeight: 'bold', fontSize: isSide ? '13px' : '10px', textAlign: 'center' }}>{isEditing ? '入力中' : (slot.car?.name || '空')}</span>
+                <span style={{ fontWeight: 'bold', fontSize: isSide ? '14px' : '11px', textAlign: 'center' }}>{isEditing ? '入力中' : (slot.car?.name || '空')}</span>
                 {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '9px', fontWeight: 'bold' }}>{slot.car.status}</span>}
               </div>
             );
@@ -169,19 +171,18 @@ function App() {
         </div>
       </div>
 
-      {/* 削除実行バー */}
       {isSelectionMode && selectedIds.length > 0 && (
         <div style={floatingBarStyle}>
-          <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択中</span>
-          <button onClick={handleBulkClear} style={bulkDeleteButtonStyle}>一括削除</button>
+          <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択</span>
+          <button onClick={handleBulkClear} style={bulkDeleteButtonStyle}>削除実行</button>
         </div>
       )}
 
-      {/* 入力モーダル (完全復旧版) */}
+      {/* 3. モーダルの項目タイトルと項目数を完全復旧 */}
       {isModalOpen && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
-            <div style={{ padding: '15px 20px', borderBottom: '2px solid #007bff' }}>
+            <div style={{ padding: '15px 20px', borderBottom: '2px solid #007bff', backgroundColor: '#fff' }}>
               <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>車両情報:[{slots.find(s => s.id === targetSlotId)?.label}]</h2>
             </div>
             <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
