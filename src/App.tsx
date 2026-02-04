@@ -20,6 +20,11 @@ const STAFF_LIST = [
   "藤井 武司", "上山 紀昭"
 ];
 
+const STATUS_LIST = [
+  '売約済(小売)', '売約済(AA/業販)', '在庫', 'AA行き', '解体予定', 
+  '代車', 'レンタカー', '車検預かり', '整備預かり', 'その他'
+];
+
 const getMyId = () => {
   let id = localStorage.getItem('parking_user_id');
   if (!id) {
@@ -41,8 +46,9 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [pooledCar, setPooledCar] = useState<CarDetails | null>(null);
 
+  // 状況(status)も初期値を空白に設定
   const initialFormData: CarDetails = {
-    name: '', color: '', status: '在庫', plate: '有', carManager: '', entryManager: '', entryDate: '', memo: ''
+    name: '', color: '', status: '', plate: '有', carManager: '', entryManager: '', entryDate: '', memo: ''
   };
 
   const [formData, setFormData] = useState<CarDetails>(initialFormData);
@@ -53,7 +59,7 @@ function App() {
       const formatted: Slot[] = data.map(d => ({
         id: d.id, label: d.label, editing_id: d.editing_id,
         car: d.car_name ? {
-          name: d.car_name, color: d.color, status: d.status,
+          name: d.car_name, color: d.color, status: d.status || '',
           plate: d.plate, carManager: d.car_manager || '',
           entryManager: d.entry_manager || '', entryDate: d.entry_date, memo: d.memo
         } : null
@@ -249,11 +255,11 @@ function App() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 状況</span>
                   <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} style={inputStyle}>
-                    {['売約済(小売)','売約済(AA/業販)','在庫','AA行き','解体予定','代車','レンタカー','車検預かり','整備預かり','その他'].map(v => <option key={v} value={v}>{v}</option>)}
+                    <option value=""></option>
+                    {STATUS_LIST.map(v => <option key={v} value={v}>{v}</option>)}
                   </select>
                 </div>
                 
-                {/* プレート有無をラジオボタンに変更 */}
                 <div style={fieldGroupStyle}>
                   <span style={labelStyle}>◻︎ プレート</span>
                   <div style={{ display: 'flex', gap: '20px', padding: '10px 0' }}>
@@ -309,6 +315,7 @@ function App() {
   );
 }
 
+// スタイル定義 (変更なし)
 const navButtonStyle = { flex: 1, padding: '12px 0', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '13px', cursor: 'pointer' };
 const forceUnlockButtonStyle = { position: 'absolute' as const, right: '15px', top: '50%', transform: 'translateY(-50%)', padding: '8px', backgroundColor: 'transparent', border: 'none', color: '#ddd', fontSize: '18px', cursor: 'pointer' };
 const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #dc3545' };
