@@ -58,14 +58,25 @@ function App() {
   const fetchSlots = useCallback(async () => {
     const { data, error } = await supabase.from('parking_slots').select('*').order('id', { ascending: true });
     if (!error && data) {
-      const formatted: Slot[] = data.map(d => ({
-        id: d.id, label: d.label, editing_id: d.editing_id,
-        car: d.car_name ? {
-          name: d.car_name, color: d.color, status: d.status || '',
-          plate: d.plate, carManager: d.car_manager || '',
-          entryManager: d.entry_manager || '', entryDate: d.entry_date, memo: d.memo
-        } : null
-      }));
+      const formatted: Slot[] = data.map(d => {
+        // ラベルの変換ロジック：東-1〜10 を 東-16〜25 に変換
+        let displayLabel = d.label;
+        if (d.label.startsWith('東-')) {
+          const num = parseInt(d.label.replace('東-', ''));
+          if (num >= 1 && num <= 10) {
+            displayLabel = `東-${num + 15}`;
+          }
+        }
+
+        return {
+          id: d.id, label: displayLabel, editing_id: d.editing_id,
+          car: d.car_name ? {
+            name: d.car_name, color: d.color, status: d.status || '',
+            plate: d.plate, carManager: d.car_manager || '',
+            entryManager: d.entry_manager || '', entryDate: d.entry_date, memo: d.memo
+          } : null
+        };
+      });
       setSlots(formatted);
       setLoading(false);
     }
@@ -177,7 +188,7 @@ function App() {
 
       <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, padding: '10px' }}>
         
-        {/* 1段目：フィルタープルダウンとリセット */}
+        {/* 1段目：フィルター */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto 12px auto' }}>
           <select value={filterManager} onChange={(e) => setFilterManager(e.target.value)} style={filterSelectStyle}>
             <option value="">担当者で絞り込み</option>
@@ -190,7 +201,7 @@ function App() {
           <button onClick={resetFilters} style={resetButtonStyle}>解除</button>
         </div>
 
-        {/* 2段目：モード切替ボタン */}
+        {/* 2段目：モード切替 */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto' }}>
           <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(false); setSelectedIds([]); setMoveSourceId(null); setPooledCar(null); }} style={{ ...navButtonStyle, backgroundColor: (!isSelectionMode && !isMoveMode) ? '#007bff' : '#f8f9fa', color: (!isSelectionMode && !isMoveMode) ? '#fff' : '#333' }}>入力</button>
           <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(true); setSelectedIds([]); setMoveSourceId(null); }} style={{ ...navButtonStyle, backgroundColor: isMoveMode ? '#ffc107' : '#f8f9fa', color: '#000' }}>移動</button>
@@ -328,7 +339,6 @@ function App() {
   );
 }
 
-// スタイル定義
 const filterSelectStyle = { flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '13px', backgroundColor: '#f8f9fa', cursor: 'pointer', minWidth: 0 };
 const resetButtonStyle = { padding: '0 15px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold' as const, cursor: 'pointer' };
 const navButtonStyle = { flex: 1, padding: '12px 0', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '13px', cursor: 'pointer' };
