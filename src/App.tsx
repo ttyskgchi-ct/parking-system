@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabaseClient'
 
-// 型定義
 interface CarDetails {
   name: string; color: string; status: string; plate: string;
   carManager: string; entryManager: string; entryDate: string; memo: string;
@@ -76,8 +75,7 @@ function App() {
     }).eq('id', toId);
 
     await supabase.from('parking_slots').update({
-      car_name: null, color: null, status: null, plate: null,
-      car_manager: null, entry_manager: null, entry_date: null, memo: null
+      car_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null
     }).eq('id', moveSourceId);
 
     setMoveSourceId(null);
@@ -105,40 +103,40 @@ function App() {
   };
 
   const handleBulkClear = async () => {
-    if (selectedIds.length === 0) return;
     if (!confirm(`${selectedIds.length}台を一括削除しますか？`)) return;
     await supabase.from('parking_slots').update({ car_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null }).in('id', selectedIds);
     setSelectedIds([]); setIsSelectionMode(false); fetchSlots();
   };
 
-  if (loading && slots.length === 0) return <div style={{ textAlign: 'center', padding: '50px' }}>Loading...</div>;
+  if (loading && slots.length === 0) return <div style={{ textAlign: 'center', padding: '50px' }}>読み込み中...</div>;
 
   return (
-    <div style={{ backgroundColor: '#f0f2f5', minHeight: '100vh', width: '100vw', fontFamily: 'sans-serif', margin: 0, padding: 0, overflowX: 'hidden' }}>
+    <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif' }}>
       
-      {/* メニューバー */}
-      <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', padding: '12px 10px', zIndex: 1000, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto' }}>
+      {/* メニューバー & タイトル */}
+      <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, paddingBottom: '10px' }}>
+        <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: '15px 0' }}>🚗 駐車場管理システム</h1>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto', padding: '0 10px' }}>
           <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(false); setSelectedIds([]); setMoveSourceId(null); }} style={{ ...navButtonStyle, backgroundColor: (!isSelectionMode && !isMoveMode) ? '#007bff' : '#f8f9fa', color: (!isSelectionMode && !isMoveMode) ? '#fff' : '#333' }}>入力</button>
           <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(true); setSelectedIds([]); setMoveSourceId(null); }} style={{ ...navButtonStyle, backgroundColor: isMoveMode ? '#ffc107' : '#f8f9fa', color: '#000' }}>移動</button>
           <button onClick={() => { setIsSelectionMode(true); setIsMoveMode(false); setMoveSourceId(null); }} style={{ ...navButtonStyle, backgroundColor: isSelectionMode ? '#dc3545' : '#f8f9fa', color: isSelectionMode ? '#fff' : '#333' }}>削除</button>
         </div>
       </div>
 
-      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px 10px 150px 10px' }}>
-        
+      <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 160px 10px' }}>
         {isMoveMode && (
-          <div style={{ textAlign: 'center', marginBottom: '15px', backgroundColor: '#fff3cd', padding: '12px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid #ffeeba', fontSize: '14px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '15px', backgroundColor: '#fff3cd', padding: '12px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid #ffeeba' }}>
             {!moveSourceId ? "【移動元の車】をタップ" : "【移動先の場所】をタップ"}
           </div>
         )}
 
-        {/* 駐車場グリッド */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', width: '100%' }}>
+        {/* 駐車場グリッド (横幅を西・東で動的に変更) */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1.8fr', gap: '8px' }}>
           {slots.map((slot) => {
             const isEditing = slot.editing_id !== null && slot.editing_id !== myId;
             const isMoveSource = moveSourceId === slot.id;
             const isSelected = selectedIds.includes(slot.id);
+            const isSide = slot.label.includes('-'); // 西-1, 東-1 判定
 
             return (
               <div 
@@ -157,13 +155,13 @@ function App() {
                 }}
                 style={{
                   minHeight: '85px', borderRadius: '8px', border: '1px solid #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                  backgroundColor: isEditing ? '#e9ecef' : (isMoveSource ? '#ffc107' : (isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#f8f9fa'))),
+                  backgroundColor: isEditing ? '#e9ecef' : (isMoveSource ? '#ffc107' : (isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#f0f0f0'))),
                   borderColor: isMoveSource ? '#ff9800' : (isSelected ? '#dc3545' : (slot.car ? '#007bff' : '#ccc')),
                   borderWidth: (isMoveSource || isSelected) ? '3px' : '1px'
                 }}
               >
                 <span style={{ fontSize: '10px', color: '#666' }}>{slot.label}</span>
-                <span style={{ fontWeight: 'bold', fontSize: '11px', textAlign: 'center' }}>{isEditing ? '入力中' : (slot.car?.name || '空')}</span>
+                <span style={{ fontWeight: 'bold', fontSize: isSide ? '13px' : '10px', textAlign: 'center' }}>{isEditing ? '入力中' : (slot.car?.name || '空')}</span>
                 {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '9px', fontWeight: 'bold' }}>{slot.car.status}</span>}
               </div>
             );
@@ -171,35 +169,53 @@ function App() {
         </div>
       </div>
 
-      {/* 削除ボタンバー */}
+      {/* 削除実行バー */}
       {isSelectionMode && selectedIds.length > 0 && (
-        <div style={{ position: 'fixed', bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '90%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '2px solid #dc3545' }}>
-          <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択</span>
-          <button onClick={handleBulkClear} style={{ backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>一括削除</button>
+        <div style={floatingBarStyle}>
+          <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択中</span>
+          <button onClick={handleBulkClear} style={bulkDeleteButtonStyle}>一括削除</button>
         </div>
       )}
 
-      {/* モーダル */}
+      {/* 入力モーダル (完全復旧版) */}
       {isModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '10px' }}>
-          <div style={{ backgroundColor: '#fff', width: '100%', maxWidth: '450px', borderRadius: '15px', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={modalOverlayStyle}>
+          <div style={modalContentStyle}>
             <div style={{ padding: '15px 20px', borderBottom: '2px solid #007bff' }}>
               <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>車両情報:[{slots.find(s => s.id === targetSlotId)?.label}]</h2>
             </div>
             <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <input type="text" placeholder="車名" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={modalInputStyle} />
-              <input type="text" placeholder="色" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} style={modalInputStyle} />
-              <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} style={modalInputStyle}>
-                {['売約済(小売)','売約済(AA/業販)','在庫','AA行き','解体予定','代車','レンタカー','車検預かり','整備預かり','その他'].map(v => <option key={v} value={v}>{v}</option>)}
-              </select>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input type="text" value={formData.entryDate} readOnly style={{ ...modalInputStyle, backgroundColor: '#f0f0f0', flex: 1 }} />
-                <button onClick={() => setFormData({...formData, entryDate: getNowTimestamp()})} style={{ backgroundColor: '#28a745', color: '#fff', border: 'none', padding: '0 10px', borderRadius: '6px', cursor: 'pointer' }}>打刻</button>
+              <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 車名</span><input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={inputStyle} /></div>
+              <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 色</span><input type="text" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} style={inputStyle} /></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 状況</span>
+                  <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} style={inputStyle}>
+                    {['売約済(小売)','売約済(AA/業販)','在庫','AA行き','解体予定','代車','レンタカー','車検預かり','整備預かり','その他'].map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+                <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ プレート</span>
+                  <select value={formData.plate} onChange={e => setFormData({...formData, plate: e.target.value})} style={inputStyle}><option value="有">有</option><option value="無">無</option></select>
+                </div>
               </div>
-              <textarea placeholder="備考" rows={2} value={formData.memo} onChange={e => setFormData({...formData, memo: e.target.value})} style={modalInputStyle} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 車両担当</span>
+                  <select value={formData.carManager} onChange={e => setFormData({...formData, carManager: e.target.value})} style={inputStyle}><option value="社員名１">社員名１</option><option value="社員名２">社員名２</option></select>
+                </div>
+                <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 入庫担当</span>
+                  <select value={formData.entryManager} onChange={e => setFormData({...formData, entryManager: e.target.value})} style={inputStyle}><option value="社員名１">社員名１</option><option value="社員名２">社員名２</option></select>
+                </div>
+              </div>
+              <div style={fieldGroupStyle}>
+                <span style={labelStyle}>◻︎ 入庫日</span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input type="text" value={formData.entryDate} readOnly style={{ ...inputStyle, backgroundColor: '#f0f0f0', flex: 1 }} />
+                  <button onClick={() => setFormData({...formData, entryDate: getNowTimestamp()})} style={{ backgroundColor: '#28a745', color: '#fff', border: 'none', padding: '0 12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>打刻</button>
+                </div>
+              </div>
+              <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 備考</span><textarea rows={2} value={formData.memo} onChange={e => setFormData({...formData, memo: e.target.value})} style={{...inputStyle, height: '60px'}} /></div>
             </div>
-            <div style={{ padding: '15px 20px', backgroundColor: '#f8f9fa', display: 'flex', gap: '10px' }}>
-              <button onClick={handleEntry} style={{ flex: 2, padding: '14px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '18px', cursor: 'pointer' }}>保存</button>
+            <div style={{ padding: '15px 20px', backgroundColor: '#f8f9fa', borderTop: '1px solid #ddd', display: 'flex', gap: '10px' }}>
+              <button onClick={handleEntry} style={{ flex: 2, padding: '14px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '18px', cursor: 'pointer' }}>保存する</button>
               <button onClick={() => { supabase.from('parking_slots').update({ editing_id: null }).eq('id', targetSlotId); setIsModalOpen(false); }} style={{ flex: 1, padding: '14px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>閉じる</button>
             </div>
           </div>
@@ -210,6 +226,12 @@ function App() {
 }
 
 const navButtonStyle = { flex: 1, padding: '12px 0', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '13px', cursor: 'pointer' };
-const modalInputStyle = { width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '16px', boxSizing: 'border-box' as const };
+const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #dc3545' };
+const bulkDeleteButtonStyle = { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' };
+const modalOverlayStyle = { position: 'fixed' as const, top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '10px' };
+const modalContentStyle = { backgroundColor: '#fff', width: '100%', maxWidth: '450px', borderRadius: '15px', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' };
+const fieldGroupStyle = { display: 'flex', flexDirection: 'column' as const, gap: '4px' };
+const labelStyle = { fontSize: '13px', fontWeight: 'bold' as const, color: '#444' };
+const inputStyle = { width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '16px', boxSizing: 'border-box' as const };
 
 export default App;
