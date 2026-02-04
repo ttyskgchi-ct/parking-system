@@ -135,7 +135,7 @@ function App() {
 
   const handleBulkClear = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm(`${selectedIds.length}台を選択中。一括で空車にしますか？`)) return;
+    if (!confirm(`${selectedIds.length}台を一括で空車にしますか？`)) return;
 
     const { error } = await supabase
       .from('parking_slots')
@@ -158,8 +158,8 @@ function App() {
   if (loading && slots.length === 0) return <div style={{ textAlign: 'center', padding: '50px' }}>読み込み中...</div>;
 
   return (
-    <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', fontFamily: 'sans-serif' }}>
-      <div style={{ width: '100%', maxWidth: '900px', padding: '20px 10px 120px 10px', boxSizing: 'border-box' }}>
+    <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', fontFamily: 'sans-serif', margin: 0, padding: 0 }}>
+      <div style={{ width: '100%', maxWidth: '900px', padding: '20px 10px 140px 10px', boxSizing: 'border-box' }}>
         <h1 style={{ fontSize: '22px', fontWeight: 'bold', textAlign: 'center', color: '#000', margin: '10px 0 25px 0' }}>🚗 駐車場管理システム</h1>
         
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '30px', gap: '15px' }}>
@@ -176,7 +176,7 @@ function App() {
               <div 
                 key={slot.id} 
                 onClick={() => {
-                  if (isEditing) return; // 他人が編集中の場合は何もしない
+                  if (isEditing) return; 
                   if (isSelectionMode) {
                     setSelectedIds(prev => isSelected ? prev.filter(id => id !== slot.id) : [...prev, slot.id]);
                   } else {
@@ -204,11 +204,42 @@ function App() {
           })}
         </div>
 
-        {/* ★ 一括削除ボタン（ここを復活させました） */}
+        {/* 削除確定バーのスタイルをさらに確実に修正 */}
         {isSelectionMode && selectedIds.length > 0 && (
-          <div style={{ position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)', width: '90%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 5px 25px rgba(0,0,0,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 1000, border: '1px solid #dc3545' }}>
-            <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択中</span>
-            <button onClick={handleBulkClear} style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '12px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>一括削除</button>
+          <div style={{ 
+            position: 'fixed', 
+            bottom: '30px', 
+            left: '50%', 
+            transform: 'translateX(-50%)', 
+            width: '90%', 
+            maxWidth: '450px', 
+            backgroundColor: '#ffffff', 
+            padding: '20px', 
+            borderRadius: '16px', 
+            boxShadow: '0 8px 32px rgba(0,0,0,0.25)', 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            zIndex: 9999, // 最前面に強制
+            border: '2px solid #dc3545' 
+          }}>
+            <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#000' }}>{selectedIds.length}台 選択中</span>
+            <button 
+              onClick={handleBulkClear} 
+              style={{ 
+                backgroundColor: '#dc3545', 
+                color: 'white', 
+                border: 'none', 
+                padding: '12px 24px', 
+                borderRadius: '10px', 
+                fontWeight: 'bold', 
+                fontSize: '16px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(220, 53, 69, 0.3)'
+              }}
+            >
+              選択した車両を削除
+            </button>
           </div>
         )}
 
