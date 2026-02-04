@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabaseClient'
 
+// 車両詳細の型定義を復旧
 interface CarDetails {
   name: string; color: string; status: string; plate: string;
   carManager: string; entryManager: string; entryDate: string; memo: string;
@@ -42,8 +43,8 @@ function App() {
         id: d.id, label: d.label, editing_id: d.editing_id,
         car: d.car_name ? {
           name: d.car_name, color: d.color, status: d.status,
-          plate: d.plate, carManager: d.car_manager,
-          entryManager: d.entry_manager, entryDate: d.entry_date, memo: d.memo
+          plate: d.plate, car_manager: d.car_manager,
+          entry_manager: d.entry_manager, entry_date: d.entry_date, memo: d.memo
         } : null
       }));
       setSlots(formatted);
@@ -103,7 +104,7 @@ function App() {
   };
 
   const handleBulkClear = async () => {
-    if (!confirm(`${selectedIds.length}台を一括削除しますか？`)) return;
+    if (!confirm(`${selectedIds.length}台を削除しますか？`)) return;
     await supabase.from('parking_slots').update({ car_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null }).in('id', selectedIds);
     setSelectedIds([]); setIsSelectionMode(false); fetchSlots();
   };
@@ -113,10 +114,12 @@ function App() {
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif', margin: 0, padding: 0 }}>
       
-      {/* 1. タイトル復活 */}
-      <h1 style={{ fontSize: '22px', fontWeight: 'bold', textAlign: 'center', padding: '20px 0 10px 0', margin: 0, backgroundColor: '#fff' }}>🚗 駐車場管理システム</h1>
+      {/* --- タイトルエリア --- */}
+      <div style={{ backgroundColor: '#fff', padding: '20px 0 10px 0' }}>
+        <h1 style={{ fontSize: '22px', fontWeight: 'bold', textAlign: 'center', margin: 0 }}>🚗 駐車場管理システム</h1>
+      </div>
 
-      {/* モード切替ボタン */}
+      {/* --- 操作メニュー --- */}
       <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, padding: '10px' }}>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto' }}>
           <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(false); setSelectedIds([]); setMoveSourceId(null); }} style={{ ...navButtonStyle, backgroundColor: (!isSelectionMode && !isMoveMode) ? '#007bff' : '#f8f9fa', color: (!isSelectionMode && !isMoveMode) ? '#fff' : '#333' }}>入力</button>
@@ -128,17 +131,17 @@ function App() {
       <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 160px 10px' }}>
         {isMoveMode && (
           <div style={{ textAlign: 'center', marginBottom: '15px', backgroundColor: '#fff3cd', padding: '12px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid #ffeeba' }}>
-            {!moveSourceId ? "【移動元の車】を選択" : "【移動先の場所】を選択"}
+            {!moveSourceId ? "【移動元の車】を選択してください" : "【移動先の場所】を選択してください"}
           </div>
         )}
 
-        {/* 2. オブジェクトの幅（西・東が広い）を復活 */}
+        {/* --- 駐車場レイアウト (西・東を1.8frで幅広に設定) --- */}
         <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1.8fr', gap: '8px' }}>
           {slots.map((slot) => {
             const isEditing = slot.editing_id !== null && slot.editing_id !== myId;
             const isMoveSource = moveSourceId === slot.id;
             const isSelected = selectedIds.includes(slot.id);
-            const isSide = slot.label.includes('-'); 
+            const isSide = slot.label.includes('-'); // 西・東判定
 
             return (
               <div 
@@ -171,14 +174,15 @@ function App() {
         </div>
       </div>
 
+      {/* --- 一括削除バー --- */}
       {isSelectionMode && selectedIds.length > 0 && (
         <div style={floatingBarStyle}>
-          <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択</span>
+          <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択中</span>
           <button onClick={handleBulkClear} style={bulkDeleteButtonStyle}>削除実行</button>
         </div>
       )}
 
-      {/* 3. モーダルの項目タイトルと項目数を完全復旧 */}
+      {/* --- 入力モーダル (全項目復旧) --- */}
       {isModalOpen && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
