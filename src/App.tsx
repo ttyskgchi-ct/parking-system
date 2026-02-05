@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from './supabaseClient'
 
+// 車両情報の型定義
 interface CarDetails {
   name: string; color: string; status: string; plate: string;
   carManager: string; entryManager: string; entryDate: string; memo: string;
@@ -76,7 +77,8 @@ function App() {
         };
       });
       setSlots(formatted);
-      setLoading(false);
+      // 少しだけ余韻を残してロード完了（一瞬で終わると味気ないため）
+      setTimeout(() => setLoading(false), 800);
     }
   }, []);
 
@@ -174,7 +176,20 @@ function App() {
     setSelectedIds([]); setIsSelectionMode(false); fetchSlots();
   };
 
-  if (loading && slots.length === 0) return <div style={{ textAlign: 'center', padding: '50px' }}>読み込み中...</div>;
+  // デザイン性の高いローディング画面
+  if (loading) return (
+    <div style={loadingContainerStyle}>
+      <style>{`
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+        @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+      `}</style>
+      <div style={{ fontSize: '60px', animation: 'bounce 1.5s infinite ease-in-out' }}>🚗</div>
+      <div style={{ marginTop: '20px', fontSize: '18px', fontWeight: 'bold', color: '#007bff', letterSpacing: '2px' }}>
+        LOADING<span style={{ animation: 'pulse 1.5s infinite' }}>...</span>
+      </div>
+      <div style={{ marginTop: '10px', fontSize: '12px', color: '#999' }}>裏駐車場管理システム</div>
+    </div>
+  );
 
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif', margin: 0, padding: 0 }}>
@@ -334,6 +349,16 @@ function App() {
     </div>
   );
 }
+
+// 追加：ローディング画面のスタイル
+const loadingContainerStyle = {
+  display: 'flex',
+  flexDirection: 'column' as const,
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: '100vh',
+  backgroundColor: '#fff'
+};
 
 const filterSelectStyle = { flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '13px', backgroundColor: '#f8f9fa', cursor: 'pointer', minWidth: 0 };
 const resetButtonStyle = { padding: '0 15px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold' as const, cursor: 'pointer' };
