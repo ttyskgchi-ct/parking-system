@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from './supabaseClient'
 
-// 車両情報の型定義
+// --- 型定義 ---
 interface CarDetails {
   name: string; color: string; status: string; plate: string;
   carManager: string; entryManager: string; entryDate: string; memo: string;
@@ -12,6 +12,7 @@ interface Slot {
   editing_id: string | null;
 }
 
+// --- 定数 ---
 const STAFF_LIST = [
   "岡﨑 有功", "森岡 央行", "岡本 康一", "岡本 慎平", "谷本 貢一",
   "朝栄 拓海", "亀島 大夢", "淺野 佳菜子", "坪井 美佳", "杉山 詩織",
@@ -46,16 +47,15 @@ function App() {
   const [moveSourceId, setMoveSourceId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [pooledCar, setPooledCar] = useState<CarDetails | null>(null);
-
   const [filterManager, setFilterManager] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
   const initialFormData: CarDetails = {
     name: '', color: '', status: '', plate: '有', carManager: '', entryManager: '', entryDate: '', memo: ''
   };
-
   const [formData, setFormData] = useState<CarDetails>(initialFormData);
 
+  // --- データ取得ロジック ---
   const fetchSlots = useCallback(async () => {
     const { data, error } = await supabase.from('parking_slots').select('*').order('id', { ascending: true });
     if (!error && data) {
@@ -63,9 +63,7 @@ function App() {
         let displayLabel = d.label;
         if (d.label.startsWith('東-')) {
           const num = parseInt(d.label.replace('東-', ''));
-          if (num >= 1 && num <= 10) {
-            displayLabel = `東-${num + 15}`;
-          }
+          if (num >= 1 && num <= 10) displayLabel = `東-${num + 15}`;
         }
         return {
           id: d.id, label: displayLabel, editing_id: d.editing_id,
@@ -77,8 +75,8 @@ function App() {
         };
       });
       setSlots(formatted);
-      // 少しだけ余韻を残してロード完了（一瞬で終わると味気ないため）
-      setTimeout(() => setLoading(false), 800);
+      // ロゴアニメーションをしっかり見せるため、少し待機してからロード完了
+      setTimeout(() => setLoading(false), 1800);
     }
   }, []);
 
@@ -92,6 +90,7 @@ function App() {
     return () => { supabase.removeChannel(channel); };
   }, [fetchSlots]);
 
+  // --- ハンドラー (移動、削除、保存、ロック解除) ---
   const getNowTimestamp = () => {
     const now = new Date();
     return `${now.getFullYear()}/${(now.getMonth()+1)}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
@@ -103,10 +102,7 @@ function App() {
     fetchSlots();
   };
 
-  const resetFilters = () => {
-    setFilterManager('');
-    setFilterStatus('');
-  };
+  const resetFilters = () => { setFilterManager(''); setFilterStatus(''); };
 
   const handleMove = async (toId: number) => {
     const sourceSlot = slots.find(s => s.id === moveSourceId);
@@ -151,9 +147,7 @@ function App() {
   };
 
   const closeModal = async () => {
-    if (targetSlotId) {
-      await supabase.from('parking_slots').update({ editing_id: null }).eq('id', targetSlotId);
-    }
+    if (targetSlotId) await supabase.from('parking_slots').update({ editing_id: null }).eq('id', targetSlotId);
     setIsModalOpen(false); setTargetSlotId(null); fetchSlots();
   };
 
@@ -176,31 +170,37 @@ function App() {
     setSelectedIds([]); setIsSelectionMode(false); fetchSlots();
   };
 
-  // デザイン性の高いローディング画面
+  // --- ローディング表示 ---
   if (loading) return (
     <div style={loadingContainerStyle}>
       <style>{`
-        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
-        @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+        @keyframes fill-color { 0% { width: 0%; } 100% { width: 100%; } }
+        @keyframes fade-in-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
-      <div style={{ fontSize: '60px', animation: 'bounce 1.5s infinite ease-in-out' }}>🚗</div>
-      <div style={{ marginTop: '20px', fontSize: '18px', fontWeight: 'bold', color: '#007bff', letterSpacing: '2px' }}>
-        LOADING<span style={{ animation: 'pulse 1.5s infinite' }}>...</span>
+      <div style={logoWrapperStyle}>
+        <img src="/logo.png" alt="Logo Gray" style={{ ...logoBaseStyle, filter: 'grayscale(100%) opacity(0.15)' }} />
+        <div style={logoColorFillStyle}>
+          <img src="/logo.png" alt="Logo Color" style={logoBaseStyle} />
+        </div>
       </div>
-      <div style={{ marginTop: '10px', fontSize: '12px', color: '#999' }}>裏駐車場管理システム</div>
+      <div style={{ marginTop: '30px', fontSize: '14px', fontWeight: 'bold', color: '#333', letterSpacing: '3px', animation: 'fade-in-up 0.8s ease-out forwards' }}>
+        LOADING
+      </div>
+      <div style={{ marginTop: '5px', fontSize: '10px', color: '#aaa', animation: 'fade-in-up 1s ease-out forwards' }}>
+        裏駐車場管理システム
+      </div>
     </div>
   );
 
+  // --- メインUI ---
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif', margin: 0, padding: 0 }}>
-      
       <div style={{ backgroundColor: '#fff', padding: '15px 0', position: 'relative' }}>
         <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: 0 }}>🚗 裏駐車場管理</h1>
         <button onClick={handleForceUnlockAll} style={forceUnlockButtonStyle} title="全ロック解除">⚙</button>
       </div>
 
       <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, padding: '10px' }}>
-        
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto 12px auto' }}>
           <select value={filterManager} onChange={(e) => setFilterManager(e.target.value)} style={filterSelectStyle}>
             <option value="">担当者で絞り込み</option>
@@ -223,10 +223,7 @@ function App() {
       <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 180px 10px' }}>
         {isMoveMode && (
           <div style={{ textAlign: 'center', marginBottom: '15px', backgroundColor: '#fff3cd', padding: '12px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid #ffeeba', fontSize: '14px' }}>
-            {pooledCar 
-              ? `保管中: ${pooledCar.name} (移動先をタップ)` 
-              : (!moveSourceId ? "【移動元の車】を選択" : "【移動先の場所】を選択")
-            }
+            {pooledCar ? `保管中: ${pooledCar.name} (移動先をタップ)` : (!moveSourceId ? "【移動元の車】を選択" : "【移動先の場所】を選択")}
           </div>
         )}
 
@@ -236,7 +233,6 @@ function App() {
             const isMoveSource = moveSourceId === slot.id;
             const isSelected = selectedIds.includes(slot.id);
             const isSide = slot.label.includes('-'); 
-
             const matchManager = filterManager === '' || slot.car?.carManager === filterManager;
             const matchStatus = filterStatus === '' || slot.car?.status === filterStatus;
             const isHighlighted = (filterManager !== '' || filterStatus !== '') && matchManager && matchStatus && slot.car;
@@ -275,6 +271,7 @@ function App() {
         </div>
       </div>
 
+      {/* 一時保管バー・編集モーダルなどは以前のコードを維持 */}
       {isMoveMode && pooledCar && (
         <div style={poolBarStyle}>
           <div style={{ flex: 1 }}>
@@ -350,15 +347,11 @@ function App() {
   );
 }
 
-// 追加：ローディング画面のスタイル
-const loadingContainerStyle = {
-  display: 'flex',
-  flexDirection: 'column' as const,
-  alignItems: 'center',
-  justifyContent: 'center',
-  height: '100vh',
-  backgroundColor: '#fff'
-};
+// --- スタイル定義 ---
+const loadingContainerStyle = { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#fff' };
+const logoWrapperStyle = { position: 'relative' as const, width: '180px', height: 'auto', display: 'flex', justifyContent: 'center' };
+const logoBaseStyle = { width: '180px', height: 'auto', display: 'block' };
+const logoColorFillStyle = { position: 'absolute' as const, top: 0, left: 0, width: '0%', height: '100%', overflow: 'hidden', animation: 'fill-color 1.5s ease-in-out forwards' };
 
 const filterSelectStyle = { flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '13px', backgroundColor: '#f8f9fa', cursor: 'pointer', minWidth: 0 };
 const resetButtonStyle = { padding: '0 15px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold' as const, cursor: 'pointer' };
