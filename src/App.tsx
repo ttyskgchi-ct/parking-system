@@ -61,6 +61,7 @@ function App() {
     if (!error && data) {
       const formatted: Slot[] = data.map(d => {
         let displayLabel = d.label;
+        // 東の列（1〜10）を 16〜25 に変換
         if (d.label.startsWith('東-')) {
           const num = parseInt(d.label.replace('東-', ''));
           if (num >= 1 && num <= 10) displayLabel = `東-${num + 15}`;
@@ -75,7 +76,6 @@ function App() {
         };
       });
       setSlots(formatted);
-      // ロゴアニメーションをしっかり見せるため、少し待機してからロード完了
       setTimeout(() => setLoading(false), 1800);
     }
   }, []);
@@ -90,7 +90,7 @@ function App() {
     return () => { supabase.removeChannel(channel); };
   }, [fetchSlots]);
 
-  // --- ハンドラー (移動、削除、保存、ロック解除) ---
+  // --- ヘルパー関数群 ---
   const getNowTimestamp = () => {
     const now = new Date();
     return `${now.getFullYear()}/${(now.getMonth()+1)}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
@@ -227,12 +227,17 @@ function App() {
           </div>
         )}
 
+        {/* 5列グリッド配置 */}
         <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1.8fr', gap: '8px' }}>
           {slots.map((slot) => {
             const isEditing = slot.editing_id !== null && slot.editing_id !== myId;
             const isMoveSource = moveSourceId === slot.id;
             const isSelected = selectedIds.includes(slot.id);
+            
+            // ラベルに応じた見た目の切り替え
             const isSide = slot.label.includes('-'); 
+            const isSpecial = slot.label === '社員駐' || slot.label === '縦';
+
             const matchManager = filterManager === '' || slot.car?.carManager === filterManager;
             const matchStatus = filterStatus === '' || slot.car?.status === filterStatus;
             const isHighlighted = (filterManager !== '' || filterStatus !== '') && matchManager && matchStatus && slot.car;
@@ -260,8 +265,8 @@ function App() {
                   boxShadow: isHighlighted ? '0 0 12px rgba(0,123,255,0.5)' : 'none'
                 }}
               >
-                <span style={{ fontSize: '10px', color: '#666' }}>{slot.label}</span>
-                <span style={{ fontWeight: 'bold', fontSize: isSide ? '14px' : '11px', textAlign: 'center', color: isEditing ? '#dc3545' : '#333' }}>
+                <span style={{ fontSize: '10px', color: '#666', fontWeight: isSpecial ? 'bold' : 'normal' }}>{slot.label}</span>
+                <span style={{ fontWeight: 'bold', fontSize: (isSide || isSpecial) ? '14px' : '11px', textAlign: 'center', color: isEditing ? '#dc3545' : '#333' }}>
                   {isEditing ? '入力中' : (slot.car?.name || '空')}
                 </span>
                 {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '9px', fontWeight: 'bold' }}>{slot.car.status}</span>}
@@ -271,7 +276,7 @@ function App() {
         </div>
       </div>
 
-      {/* 一時保管バー・編集モーダルなどは以前のコードを維持 */}
+      {/* 一時保管バー */}
       {isMoveMode && pooledCar && (
         <div style={poolBarStyle}>
           <div style={{ flex: 1 }}>
@@ -282,6 +287,7 @@ function App() {
         </div>
       )}
 
+      {/* 編集モーダル */}
       {isModalOpen && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
@@ -337,6 +343,7 @@ function App() {
         </div>
       )}
 
+      {/* 削除実行バー */}
       {isSelectionMode && selectedIds.length > 0 && (
         <div style={floatingBarStyle}>
           <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択</span>
