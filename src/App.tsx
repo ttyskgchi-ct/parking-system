@@ -59,7 +59,6 @@ function App() {
     const { data, error } = await supabase.from('parking_slots').select('*').order('id', { ascending: true });
     if (!error && data) {
       const formatted: Slot[] = data.map(d => {
-        // ラベルの変換ロジック：東-1〜10 を 東-16〜25 に変換
         let displayLabel = d.label;
         if (d.label.startsWith('東-')) {
           const num = parseInt(d.label.replace('東-', ''));
@@ -67,7 +66,6 @@ function App() {
             displayLabel = `東-${num + 15}`;
           }
         }
-
         return {
           id: d.id, label: displayLabel, editing_id: d.editing_id,
           car: d.car_name ? {
@@ -182,13 +180,12 @@ function App() {
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif', margin: 0, padding: 0 }}>
       
       <div style={{ backgroundColor: '#fff', padding: '15px 0', position: 'relative' }}>
-        <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: 0 }}>🚗 駐車場管理システム</h1>
+        <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: 0 }}>🚗 裏駐車場管理</h1>
         <button onClick={handleForceUnlockAll} style={forceUnlockButtonStyle} title="全ロック解除">⚙</button>
       </div>
 
       <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, padding: '10px' }}>
         
-        {/* 1段目：フィルター */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto 12px auto' }}>
           <select value={filterManager} onChange={(e) => setFilterManager(e.target.value)} style={filterSelectStyle}>
             <option value="">担当者で絞り込み</option>
@@ -201,7 +198,6 @@ function App() {
           <button onClick={resetFilters} style={resetButtonStyle}>解除</button>
         </div>
 
-        {/* 2段目：モード切替 */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto' }}>
           <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(false); setSelectedIds([]); setMoveSourceId(null); setPooledCar(null); }} style={{ ...navButtonStyle, backgroundColor: (!isSelectionMode && !isMoveMode) ? '#007bff' : '#f8f9fa', color: (!isSelectionMode && !isMoveMode) ? '#fff' : '#333' }}>入力</button>
           <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(true); setSelectedIds([]); setMoveSourceId(null); }} style={{ ...navButtonStyle, backgroundColor: isMoveMode ? '#ffc107' : '#f8f9fa', color: '#000' }}>移動</button>
