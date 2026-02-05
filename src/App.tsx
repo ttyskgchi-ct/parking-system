@@ -61,7 +61,7 @@ function App() {
     if (!error && data) {
       const formatted: Slot[] = data.map(d => {
         let displayLabel = d.label;
-        // 東の列（1〜10）を 16〜25 に変換
+        // 東の列（1〜10）を 16〜25 に変換するロジック
         if (d.label.startsWith('東-')) {
           const num = parseInt(d.label.replace('東-', ''));
           if (num >= 1 && num <= 10) displayLabel = `東-${num + 15}`;
@@ -76,6 +76,7 @@ function App() {
         };
       });
       setSlots(formatted);
+      // ロゴアニメーションを魅せるための待機時間
       setTimeout(() => setLoading(false), 1800);
     }
   }, []);
@@ -90,7 +91,7 @@ function App() {
     return () => { supabase.removeChannel(channel); };
   }, [fetchSlots]);
 
-  // --- ヘルパー関数群 ---
+  // --- ヘルパー関数 ---
   const getNowTimestamp = () => {
     const now = new Date();
     return `${now.getFullYear()}/${(now.getMonth()+1)}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
@@ -192,14 +193,15 @@ function App() {
     </div>
   );
 
-  // --- メインUI ---
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif', margin: 0, padding: 0 }}>
+      {/* ヘッダー */}
       <div style={{ backgroundColor: '#fff', padding: '15px 0', position: 'relative' }}>
         <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: 0 }}>🚗 裏駐車場管理</h1>
         <button onClick={handleForceUnlockAll} style={forceUnlockButtonStyle} title="全ロック解除">⚙</button>
       </div>
 
+      {/* フィルタ & メニュー */}
       <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, padding: '10px' }}>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto 12px auto' }}>
           <select value={filterManager} onChange={(e) => setFilterManager(e.target.value)} style={filterSelectStyle}>
@@ -220,6 +222,7 @@ function App() {
         </div>
       </div>
 
+      {/* メイングリッド表示 */}
       <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 180px 10px' }}>
         {isMoveMode && (
           <div style={{ textAlign: 'center', marginBottom: '15px', backgroundColor: '#fff3cd', padding: '12px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid #ffeeba', fontSize: '14px' }}>
@@ -227,16 +230,16 @@ function App() {
           </div>
         )}
 
-        {/* 5列グリッド配置 */}
         <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1.8fr', gap: '8px' }}>
           {slots.map((slot) => {
             const isEditing = slot.editing_id !== null && slot.editing_id !== myId;
             const isMoveSource = moveSourceId === slot.id;
             const isSelected = selectedIds.includes(slot.id);
             
-            // ラベルに応じた見た目の切り替え
-            const isSide = slot.label.includes('-'); 
-            const isSpecial = slot.label === '社員駐' || slot.label === '縦';
+            // ラベルの役割に応じたスタイルの分岐
+            const isSide = slot.label.includes('西') || slot.label.includes('東'); 
+            const isSpecial = slot.label === '社員駐';
+            const isTate = slot.label === '縦';
 
             const matchManager = filterManager === '' || slot.car?.carManager === filterManager;
             const matchStatus = filterStatus === '' || slot.car?.status === filterStatus;
@@ -265,9 +268,20 @@ function App() {
                   boxShadow: isHighlighted ? '0 0 12px rgba(0,123,255,0.5)' : 'none'
                 }}
               >
-                <span style={{ fontSize: '10px', color: '#666', fontWeight: isSpecial ? 'bold' : 'normal' }}>{slot.label}</span>
-                <span style={{ fontWeight: 'bold', fontSize: (isSide || isSpecial) ? '14px' : '11px', textAlign: 'center', color: isEditing ? '#dc3545' : '#333' }}>
-                  {isEditing ? '入力中' : (slot.car?.name || '空')}
+                <span style={{ 
+                  fontSize: '10px', 
+                  color: isSpecial ? '#007bff' : (isTate ? '#666' : '#888'),
+                  fontWeight: (isSpecial || isTate) ? 'bold' : 'normal'
+                }}>
+                  {slot.label}
+                </span>
+                <span style={{ 
+                  fontWeight: 'bold', 
+                  fontSize: isSide ? '14px' : '11px', 
+                  textAlign: 'center', 
+                  color: isEditing ? '#dc3545' : '#333' 
+                }}>
+                  {isEditing ? '入力中' : (slot.car?.name || (isSpecial ? '---' : '空'))}
                 </span>
                 {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '9px', fontWeight: 'bold' }}>{slot.car.status}</span>}
               </div>
@@ -276,7 +290,7 @@ function App() {
         </div>
       </div>
 
-      {/* 一時保管バー */}
+      {/* フローティングバー (移動・削除) */}
       {isMoveMode && pooledCar && (
         <div style={poolBarStyle}>
           <div style={{ flex: 1 }}>
@@ -287,7 +301,14 @@ function App() {
         </div>
       )}
 
-      {/* 編集モーダル */}
+      {isSelectionMode && selectedIds.length > 0 && (
+        <div style={floatingBarStyle}>
+          <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択</span>
+          <button onClick={handleBulkClear} style={bulkDeleteButtonStyle}>削除実行</button>
+        </div>
+      )}
+
+      {/* モーダル */}
       {isModalOpen && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
@@ -340,14 +361,6 @@ function App() {
               <button onClick={closeModal} style={{ flex: 1, padding: '14px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px' }}>閉じる</button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* 削除実行バー */}
-      {isSelectionMode && selectedIds.length > 0 && (
-        <div style={floatingBarStyle}>
-          <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択</span>
-          <button onClick={handleBulkClear} style={bulkDeleteButtonStyle}>削除実行</button>
         </div>
       )}
     </div>
