@@ -3,12 +3,21 @@ import { supabase } from './supabaseClient'
 
 // --- 型定義 ---
 interface CarDetails {
-  name: string; color: string; status: string; plate: string;
-  carManager: string; entryManager: string; entryDate: string; memo: string;
+  name: string; 
+  customerName: string; // 追加
+  color: string; 
+  status: string; 
+  plate: string;
+  carManager: string; 
+  entryManager: string; 
+  entryDate: string; 
+  memo: string;
 }
 
 interface Slot {
-  id: number; label: string; car: CarDetails | null;
+  id: number; 
+  label: string; 
+  car: CarDetails | null;
   editing_id: string | null;
 }
 
@@ -51,17 +60,15 @@ function App() {
   const [filterStatus, setFilterStatus] = useState('');
 
   const initialFormData: CarDetails = {
-    name: '', color: '', status: '', plate: '有', carManager: '', entryManager: '', entryDate: '', memo: ''
+    name: '', customerName: '', color: '', status: '', plate: '有', carManager: '', entryManager: '', entryDate: '', memo: ''
   };
   const [formData, setFormData] = useState<CarDetails>(initialFormData);
 
-  // --- データ取得ロジック ---
   const fetchSlots = useCallback(async () => {
     const { data, error } = await supabase.from('parking_slots').select('*').order('id', { ascending: true });
     if (!error && data) {
       const formatted: Slot[] = data.map(d => {
         let displayLabel = d.label;
-        // 東の列（1〜10）を 16〜25 に変換するロジック
         if (d.label.startsWith('東-')) {
           const num = parseInt(d.label.replace('東-', ''));
           if (num >= 1 && num <= 10) displayLabel = `東-${num + 15}`;
@@ -69,14 +76,19 @@ function App() {
         return {
           id: d.id, label: displayLabel, editing_id: d.editing_id,
           car: d.car_name ? {
-            name: d.car_name, color: d.color, status: d.status || '',
-            plate: d.plate, carManager: d.car_manager || '',
-            entryManager: d.entry_manager || '', entryDate: d.entry_date, memo: d.memo
+            name: d.car_name, 
+            customerName: d.customer_name || '', // DBから取得
+            color: d.color, 
+            status: d.status || '',
+            plate: d.plate, 
+            carManager: d.car_manager || '',
+            entryManager: d.entry_manager || '', 
+            entryDate: d.entry_date, 
+            memo: d.memo
           } : null
         };
       });
       setSlots(formatted);
-      // ロゴアニメーションを魅せるための待機時間
       setTimeout(() => setLoading(false), 1800);
     }
   }, []);
@@ -91,7 +103,6 @@ function App() {
     return () => { supabase.removeChannel(channel); };
   }, [fetchSlots]);
 
-  // --- ヘルパー関数 ---
   const getNowTimestamp = () => {
     const now = new Date();
     return `${now.getFullYear()}/${(now.getMonth()+1)}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
@@ -111,13 +122,13 @@ function App() {
     if (!sourceSlot || !sourceSlot.car) return;
     if (targetSlot?.car) setPooledCar(targetSlot.car);
     await supabase.from('parking_slots').update({
-      car_name: sourceSlot.car.name, color: sourceSlot.car.color, status: sourceSlot.car.status,
+      car_name: sourceSlot.car.name, customer_name: sourceSlot.car.customerName, color: sourceSlot.car.color, status: sourceSlot.car.status,
       plate: sourceSlot.car.plate, car_manager: sourceSlot.car.carManager,
       entry_manager: sourceSlot.car.entryManager, entry_date: sourceSlot.car.entryDate,
       memo: sourceSlot.car.memo, editing_id: null
     }).eq('id', toId);
     await supabase.from('parking_slots').update({
-      car_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null, editing_id: null
+      car_name: null, customer_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null, editing_id: null
     }).eq('id', moveSourceId);
     setMoveSourceId(null);
     fetchSlots();
@@ -128,7 +139,7 @@ function App() {
     const targetSlot = slots.find(s => s.id === toId);
     const nextPooledCar = targetSlot?.car || null;
     await supabase.from('parking_slots').update({
-      car_name: pooledCar.name, color: pooledCar.color, status: pooledCar.status,
+      car_name: pooledCar.name, customer_name: pooledCar.customerName, color: pooledCar.color, status: pooledCar.status,
       plate: pooledCar.plate, car_manager: pooledCar.carManager,
       entry_manager: pooledCar.entryManager, entry_date: pooledCar.entryDate,
       memo: pooledCar.memo, editing_id: null
@@ -155,7 +166,7 @@ function App() {
   const handleEntry = async () => {
     if (!targetSlotId) return;
     await supabase.from('parking_slots').update({
-      car_name: formData.name, color: formData.color, status: formData.status,
+      car_name: formData.name, customer_name: formData.customerName, color: formData.color, status: formData.status,
       plate: formData.plate, car_manager: formData.carManager,
       entry_manager: formData.entryManager, entry_date: formData.entryDate, memo: formData.memo,
       editing_id: null
@@ -166,12 +177,11 @@ function App() {
   const handleBulkClear = async () => {
     if (!confirm(`${selectedIds.length}台を削除しますか？`)) return;
     await supabase.from('parking_slots').update({ 
-      car_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null, editing_id: null 
+      car_name: null, customer_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null, editing_id: null 
     }).in('id', selectedIds);
     setSelectedIds([]); setIsSelectionMode(false); fetchSlots();
   };
 
-  // --- ローディング表示 ---
   if (loading) return (
     <div style={loadingContainerStyle}>
       <style>{`
@@ -195,13 +205,11 @@ function App() {
 
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif', margin: 0, padding: 0 }}>
-      {/* ヘッダー */}
       <div style={{ backgroundColor: '#fff', padding: '15px 0', position: 'relative' }}>
         <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: 0 }}>🚗 裏駐車場管理</h1>
-        <button onClick={handleForceUnlockAll} style={forceUnlockButtonStyle} title="全ロック解除">⚙</button>
+        <button onClick={handleForceUnlockAll} style={forceUnlockButtonStyle}>⚙</button>
       </div>
 
-      {/* フィルタ & メニュー */}
       <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, padding: '10px' }}>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto 12px auto' }}>
           <select value={filterManager} onChange={(e) => setFilterManager(e.target.value)} style={filterSelectStyle}>
@@ -222,24 +230,13 @@ function App() {
         </div>
       </div>
 
-      {/* メイングリッド表示 */}
       <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 180px 10px' }}>
-        {isMoveMode && (
-          <div style={{ textAlign: 'center', marginBottom: '15px', backgroundColor: '#fff3cd', padding: '12px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid #ffeeba', fontSize: '14px' }}>
-            {pooledCar ? `保管中: ${pooledCar.name} (移動先をタップ)` : (!moveSourceId ? "【移動元の車】を選択" : "【移動先の場所】を選択")}
-          </div>
-        )}
-
         <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1.8fr', gap: '8px' }}>
           {slots.map((slot) => {
             const isEditing = slot.editing_id !== null && slot.editing_id !== myId;
             const isMoveSource = moveSourceId === slot.id;
             const isSelected = selectedIds.includes(slot.id);
-            
-            // ラベルの役割に応じたスタイルの分岐
             const isSide = slot.label.includes('西') || slot.label.includes('東'); 
-            const isSpecial = slot.label === '社員駐';
-            const isTate = slot.label === '縦';
 
             const matchManager = filterManager === '' || slot.car?.carManager === filterManager;
             const matchStatus = filterStatus === '' || slot.car?.status === filterStatus;
@@ -261,54 +258,36 @@ function App() {
                   } else { openForm(slot); }
                 }}
                 style={{
-                  minHeight: '85px', borderRadius: '8px', border: '1px solid #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                  minHeight: '85px', borderRadius: '8px', border: '1px solid #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: '4px',
                   backgroundColor: isEditing ? '#ffe5e5' : (isHighlighted ? '#e3f2fd' : (isMoveSource ? '#ffc107' : (isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#f0f0f0')))),
                   borderColor: isEditing ? '#dc3545' : (isHighlighted ? '#007bff' : (isMoveSource ? '#ff9800' : (isSelected ? '#dc3545' : (slot.car ? '#007bff' : '#ccc')))),
                   borderWidth: (isMoveSource || isSelected || isEditing || isHighlighted) ? '3px' : '1px',
-                  boxShadow: isHighlighted ? '0 0 12px rgba(0,123,255,0.5)' : 'none'
                 }}
               >
-                <span style={{ 
-                  fontSize: '10px', 
-                  color: isSpecial ? '#007bff' : (isTate ? '#666' : '#888'),
-                  fontWeight: (isSpecial || isTate) ? 'bold' : 'normal'
-                }}>
-                  {slot.label}
+                <span style={{ fontSize: '9px', color: '#888', marginBottom: '2px' }}>{slot.label}</span>
+                
+                {/* お客様名表示 (追加) */}
+                {slot.car?.customerName && (
+                  <span style={{ fontSize: '9px', color: '#666', fontWeight: 'normal', lineHeight: '1' }}>
+                    {slot.car.customerName} 様
+                  </span>
+                )}
+
+                <span style={{ fontWeight: 'bold', fontSize: isSide ? '13px' : '11px', textAlign: 'center', color: isEditing ? '#dc3545' : '#333', lineHeight: '1.2' }}>
+                  {isEditing ? '入力中' : (slot.car?.name || '空')}
                 </span>
-                <span style={{ 
-                  fontWeight: 'bold', 
-                  fontSize: isSide ? '14px' : '11px', 
-                  textAlign: 'center', 
-                  color: isEditing ? '#dc3545' : '#333' 
-                }}>
-                  {isEditing ? '入力中' : (slot.car?.name || (isSpecial ? '---' : '空'))}
-                </span>
-                {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '9px', fontWeight: 'bold' }}>{slot.car.status}</span>}
+
+                {!isEditing && slot.car && (
+                  <span style={{ color: '#007bff', fontSize: '9px', fontWeight: 'bold', marginTop: '2px' }}>
+                    {slot.car.status}
+                  </span>
+                )}
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* フローティングバー (移動・削除) */}
-      {isMoveMode && pooledCar && (
-        <div style={poolBarStyle}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '12px', color: '#666' }}>一時保管中</div>
-            <div style={{ fontWeight: 'bold', fontSize: '15px' }}>{pooledCar.name}</div>
-          </div>
-          <button onClick={() => setPooledCar(null)} style={poolDeleteButtonStyle}>削除</button>
-        </div>
-      )}
-
-      {isSelectionMode && selectedIds.length > 0 && (
-        <div style={floatingBarStyle}>
-          <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択</span>
-          <button onClick={handleBulkClear} style={bulkDeleteButtonStyle}>削除実行</button>
-        </div>
-      )}
-
-      {/* モーダル */}
       {isModalOpen && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
@@ -317,7 +296,12 @@ function App() {
             </div>
             <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 車名</span><input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={inputStyle} /></div>
+              
+              {/* お客様名入力 (追加) */}
+              <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ お客様名</span><input type="text" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} style={inputStyle} placeholder="様" /></div>
+              
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 色</span><input type="text" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} style={inputStyle} /></div>
+              
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 状況</span>
                   <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} style={inputStyle}>
@@ -328,11 +312,12 @@ function App() {
                 <div style={fieldGroupStyle}>
                   <span style={labelStyle}>◻︎ プレート</span>
                   <div style={{ display: 'flex', gap: '20px', padding: '10px 0' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '16px' }}><input type="radio" name="plate" value="有" checked={formData.plate === '有'} onChange={e => setFormData({...formData, plate: e.target.value})} style={{ marginRight: '8px' }} /> 有</label>
-                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '16px' }}><input type="radio" name="plate" value="無" checked={formData.plate === '無'} onChange={e => setFormData({...formData, plate: e.target.value})} style={{ marginRight: '8px' }} /> 無</label>
+                    <label style={{ display: 'flex', alignItems: 'center', fontSize: '16px' }}><input type="radio" name="plate" value="有" checked={formData.plate === '有'} onChange={e => setFormData({...formData, plate: e.target.value})} style={{ marginRight: '8px' }} /> 有</label>
+                    <label style={{ display: 'flex', alignItems: 'center', fontSize: '16px' }}><input type="radio" name="plate" value="無" checked={formData.plate === '無'} onChange={e => setFormData({...formData, plate: e.target.value})} style={{ marginRight: '8px' }} /> 無</label>
                   </div>
                 </div>
               </div>
+              
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 車両担当</span>
                   <select value={formData.carManager} onChange={e => setFormData({...formData, carManager: e.target.value})} style={inputStyle}>
@@ -351,7 +336,7 @@ function App() {
                 <span style={labelStyle}>◻︎ 入庫日</span>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input type="text" value={formData.entryDate} readOnly style={{ ...inputStyle, backgroundColor: '#f0f0f0', flex: 1 }} />
-                  <button onClick={() => setFormData({...formData, entryDate: getNowTimestamp()})} style={{ backgroundColor: '#28a745', color: '#fff', border: 'none', padding: '0 12px', borderRadius: '6px', fontWeight: 'bold' }}>打刻</button>
+                  <button onClick={() => setFormData({...formData, entryDate: getNowTimestamp()})} style={{ backgroundColor: '#28a745', color: '#fff', border: 'none', padding: '0 12px', borderRadius: '6px' }}>打刻</button>
                 </div>
               </div>
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 備考</span><textarea rows={2} value={formData.memo} onChange={e => setFormData({...formData, memo: e.target.value})} style={{...inputStyle, height: '60px'}} /></div>
@@ -367,20 +352,15 @@ function App() {
   );
 }
 
-// --- スタイル定義 ---
+// スタイルは以前と同様
 const loadingContainerStyle = { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#fff' };
 const logoWrapperStyle = { position: 'relative' as const, width: '180px', height: 'auto', display: 'flex', justifyContent: 'center' };
 const logoBaseStyle = { width: '180px', height: 'auto', display: 'block' };
 const logoColorFillStyle = { position: 'absolute' as const, top: 0, left: 0, width: '0%', height: '100%', overflow: 'hidden', animation: 'fill-color 1.5s ease-in-out forwards' };
-
-const filterSelectStyle = { flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '13px', backgroundColor: '#f8f9fa', cursor: 'pointer', minWidth: 0 };
-const resetButtonStyle = { padding: '0 15px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold' as const, cursor: 'pointer' };
-const navButtonStyle = { flex: 1, padding: '12px 0', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '13px', cursor: 'pointer' };
-const forceUnlockButtonStyle = { position: 'absolute' as const, right: '15px', top: '50%', transform: 'translateY(-50%)', padding: '8px', backgroundColor: 'transparent', border: 'none', color: '#ddd', fontSize: '18px', cursor: 'pointer' };
-const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #dc3545' };
-const bulkDeleteButtonStyle = { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' };
-const poolBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#e3f2fd', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '2px solid #2196f3' };
-const poolDeleteButtonStyle = { backgroundColor: '#666', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' };
+const filterSelectStyle = { flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '13px', backgroundColor: '#f8f9fa' };
+const resetButtonStyle = { padding: '0 15px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px' };
+const navButtonStyle = { flex: 1, padding: '12px 0', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '13px' };
+const forceUnlockButtonStyle = { position: 'absolute' as const, right: '15px', top: '50%', transform: 'translateY(-50%)', border: 'none', backgroundColor: 'transparent', color: '#ddd', fontSize: '18px' };
 const modalOverlayStyle = { position: 'fixed' as const, top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '10px' };
 const modalContentStyle = { backgroundColor: '#fff', width: '100%', maxWidth: '450px', borderRadius: '15px', maxHeight: '95vh', display: 'flex', flexDirection: 'column' as const, overflow: 'hidden' };
 const fieldGroupStyle = { display: 'flex', flexDirection: 'column' as const, gap: '4px' };
