@@ -139,19 +139,30 @@ function App() {
 
   const resetFilters = () => { setFilterManager(''); setFilterStatus(''); };
 
-  // --- タワー用の特別なソートとフィルタリング ---
+  // --- フィルタリングと並び替え ---
   const filteredSlots = useMemo(() => {
     const base = slots.filter(s => s.area_name === currentArea);
+    
     if (currentArea === 'タワー') {
       return [...base].sort((a, b) => {
         const aNum = parseInt(a.label.replace(/[^0-9]/g, '')) || 0;
         const bNum = parseInt(b.label.replace(/[^0-9]/g, '')) || 0;
-        const aSide = aNum <= 15 ? 0 : 1; // 0:左列(1-15), 1:右列(16-30)
+        const aSide = aNum <= 15 ? 0 : 1;
         const bSide = bNum <= 15 ? 0 : 1;
         if (aSide !== bSide) return aSide - bSide;
         return aNum - bNum;
       });
     }
+
+    if (currentArea === '極上仕上場') {
+      // ラベルの数字部分で昇順に並べる
+      return [...base].sort((a, b) => {
+        const aNum = parseInt(a.label.replace(/[^0-9]/g, '')) || 0;
+        const bNum = parseInt(b.label.replace(/[^0-9]/g, '')) || 0;
+        return aNum - bNum;
+      });
+    }
+
     return base;
   }, [slots, currentArea]);
 
@@ -239,7 +250,6 @@ function App() {
         <button onClick={handleForceUnlockAll} style={forceUnlockButtonStyle}>⚙</button>
       </div>
 
-      {/* エリア切替タブ */}
       <div style={{ display: 'flex', backgroundColor: '#fff', padding: '10px', gap: '8px', overflowX: 'auto', borderBottom: '1px solid #ddd', justifyContent: 'center' }}>
         {AREAS.map(area => (
           <button 
@@ -276,15 +286,23 @@ function App() {
         </div>
       </div>
 
-      <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 180px 10px' }}>
+      {/* メインエリア：極上仕上場の場合は横スクロールを許可 */}
+      <div style={{ 
+        width: '100%', 
+        overflowX: currentArea === '極上仕上場' ? 'auto' : 'hidden', 
+        padding: '20px 0 180px 0',
+        WebkitOverflowScrolling: 'touch' 
+      }}>
         <div style={{ 
           display: 'grid', 
           gridTemplateColumns: 
             currentArea === '裏駐車場' ? '1.8fr 1fr 1fr 1fr 1.8fr' : 
-            currentArea === 'タワー' ? '1fr 1fr' : 'repeat(auto-fill, minmax(85px, 1fr))', 
-          gap: '12px',
-          maxWidth: currentArea === 'タワー' ? '500px' : '950px',
-          margin: '0 auto' 
+            currentArea === 'タワー' ? '1fr 1fr' : 'repeat(8, 110px)', // 極上仕上場は8列固定、幅110px
+          gap: '10px',
+          width: currentArea === '極上仕上場' ? '900px' : 'auto', // 横幅を固定してスクロールさせる
+          maxWidth: currentArea === '極上仕上場' ? 'none' : (currentArea === 'タワー' ? '500px' : '950px'),
+          margin: (currentArea === '極上仕上場') ? '0 15px' : '0 auto',
+          padding: '0 10px'
         }}>
           {filteredSlots.map((slot) => {
             const isEditing = slot.editing_id !== null && slot.editing_id !== myId && !isLockExpired(slot.last_ping);
@@ -312,8 +330,8 @@ function App() {
                   } else { openForm(slot); }
                 }}
                 style={{
-                  minHeight: currentArea === 'タワー' ? '100px' : '85px',
-                  borderRadius: '8px', border: '1px solid #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: '4px', position: 'relative',
+                  minHeight: currentArea === 'タワー' ? '100px' : '90px',
+                  borderRadius: '8px', border: '1px solid #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: '6px', position: 'relative',
                   backgroundColor: isEditing ? '#ffe5e5' : (isMoveSource ? '#ffc107' : (isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#f0f0f0'))),
                   borderColor: isEditing ? '#dc3545' : (isMoveSource ? '#ff9800' : (isSelected ? '#dc3545' : (slot.car ? '#007bff' : '#ccc'))),
                   borderWidth: (isMoveSource || isSelected || isEditing) ? '3px' : '1px',
@@ -321,8 +339,8 @@ function App() {
                 }}
               >
                 <span style={{ fontSize: '10px', color: '#888', marginBottom: '2px', position: 'relative', zIndex: 1 }}>{slot.label}</span>
-                {slot.car?.customerName && <span style={{ fontSize: '10px', color: '#666', lineHeight: '1', position: 'relative', zIndex: 1 }}>{slot.car.customerName} 様</span>}
-                <span style={{ fontWeight: 'bold', fontSize: (currentArea === '裏駐車場' && isSide) ? '13px' : '11px', textAlign: 'center', color: isEditing ? '#dc3545' : '#333', lineHeight: '1.2', position: 'relative', zIndex: 1 }}>
+                {slot.car?.customerName && <span style={{ fontSize: '10px', color: '#666', lineHeight: '1', position: 'relative', zIndex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', textAlign: 'center' }}>{slot.car.customerName} 様</span>}
+                <span style={{ fontWeight: 'bold', fontSize: (currentArea === '裏駐車場' && isSide) ? '13px' : '12px', textAlign: 'center', color: isEditing ? '#dc3545' : '#333', lineHeight: '1.2', position: 'relative', zIndex: 1, overflow: 'hidden' }}>
                   {isEditing ? '入力中' : (slot.car?.name || '空')}
                 </span>
                 {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '10px', fontWeight: 'bold', marginTop: '2px', position: 'relative', zIndex: 1 }}>{slot.car.status}</span>}
@@ -398,6 +416,7 @@ function App() {
   );
 }
 
+// --- スタイル定義（変更なし） ---
 const loadingContainerStyle = { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#fff' };
 const logoWrapperStyle = { position: 'relative' as const, width: '180px', height: 'auto', display: 'flex', justifyContent: 'center' };
 const logoBaseStyle = { width: '180px', height: 'auto', display: 'block' };
