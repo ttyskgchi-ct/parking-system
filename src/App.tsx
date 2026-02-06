@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient'
 // --- 型定義 ---
 interface CarDetails {
   name: string; 
-  customerName: string; // 追加
+  customerName: string; 
   color: string; 
   status: string; 
   plate: string;
@@ -77,7 +77,7 @@ function App() {
           id: d.id, label: displayLabel, editing_id: d.editing_id,
           car: d.car_name ? {
             name: d.car_name, 
-            customerName: d.customer_name || '', // DBから取得
+            customerName: d.customer_name || '',
             color: d.color, 
             status: d.status || '',
             plate: d.plate, 
@@ -265,28 +265,35 @@ function App() {
                 }}
               >
                 <span style={{ fontSize: '9px', color: '#888', marginBottom: '2px' }}>{slot.label}</span>
-                
-                {/* お客様名表示 (追加) */}
-                {slot.car?.customerName && (
-                  <span style={{ fontSize: '9px', color: '#666', fontWeight: 'normal', lineHeight: '1' }}>
-                    {slot.car.customerName} 様
-                  </span>
-                )}
-
+                {slot.car?.customerName && <span style={{ fontSize: '9px', color: '#666', lineHeight: '1' }}>{slot.car.customerName} 様</span>}
                 <span style={{ fontWeight: 'bold', fontSize: isSide ? '13px' : '11px', textAlign: 'center', color: isEditing ? '#dc3545' : '#333', lineHeight: '1.2' }}>
                   {isEditing ? '入力中' : (slot.car?.name || '空')}
                 </span>
-
-                {!isEditing && slot.car && (
-                  <span style={{ color: '#007bff', fontSize: '9px', fontWeight: 'bold', marginTop: '2px' }}>
-                    {slot.car.status}
-                  </span>
-                )}
+                {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '9px', fontWeight: 'bold', marginTop: '2px' }}>{slot.car.status}</span>}
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* 削除実行バー (ここを修正：関数を呼び出すようにした) */}
+      {isSelectionMode && selectedIds.length > 0 && (
+        <div style={floatingBarStyle}>
+          <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択</span>
+          <button onClick={() => handleBulkClear()} style={bulkDeleteButtonStyle}>削除実行</button>
+        </div>
+      )}
+
+      {/* 一時保管バー */}
+      {isMoveMode && pooledCar && (
+        <div style={poolBarStyle}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '12px', color: '#666' }}>一時保管中</div>
+            <div style={{ fontWeight: 'bold', fontSize: '15px' }}>{pooledCar.name}</div>
+          </div>
+          <button onClick={() => setPooledCar(null)} style={poolDeleteButtonStyle}>削除</button>
+        </div>
+      )}
 
       {isModalOpen && (
         <div style={modalOverlayStyle}>
@@ -296,12 +303,8 @@ function App() {
             </div>
             <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 車名</span><input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={inputStyle} /></div>
-              
-              {/* お客様名入力 (追加) */}
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ お客様名</span><input type="text" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} style={inputStyle} placeholder="様" /></div>
-              
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 色</span><input type="text" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} style={inputStyle} /></div>
-              
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 状況</span>
                   <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} style={inputStyle}>
@@ -317,7 +320,6 @@ function App() {
                   </div>
                 </div>
               </div>
-              
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 車両担当</span>
                   <select value={formData.carManager} onChange={e => setFormData({...formData, carManager: e.target.value})} style={inputStyle}>
@@ -352,7 +354,7 @@ function App() {
   );
 }
 
-// スタイルは以前と同様
+// スタイル定義
 const loadingContainerStyle = { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#fff' };
 const logoWrapperStyle = { position: 'relative' as const, width: '180px', height: 'auto', display: 'flex', justifyContent: 'center' };
 const logoBaseStyle = { width: '180px', height: 'auto', display: 'block' };
@@ -361,6 +363,10 @@ const filterSelectStyle = { flex: 1, padding: '10px', borderRadius: '8px', borde
 const resetButtonStyle = { padding: '0 15px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px' };
 const navButtonStyle = { flex: 1, padding: '12px 0', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '13px' };
 const forceUnlockButtonStyle = { position: 'absolute' as const, right: '15px', top: '50%', transform: 'translateY(-50%)', border: 'none', backgroundColor: 'transparent', color: '#ddd', fontSize: '18px' };
+const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #dc3545' };
+const bulkDeleteButtonStyle = { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold' };
+const poolBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#e3f2fd', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '2px solid #2196f3' };
+const poolDeleteButtonStyle = { backgroundColor: '#666', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold' };
 const modalOverlayStyle = { position: 'fixed' as const, top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '10px' };
 const modalContentStyle = { backgroundColor: '#fff', width: '100%', maxWidth: '450px', borderRadius: '15px', maxHeight: '95vh', display: 'flex', flexDirection: 'column' as const, overflow: 'hidden' };
 const fieldGroupStyle = { display: 'flex', flexDirection: 'column' as const, gap: '4px' };
