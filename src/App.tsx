@@ -17,12 +17,15 @@ interface CarDetails {
 interface Slot {
   id: number; 
   label: string; 
+  area_name: string; // 追加
   car: CarDetails | null;
   editing_id: string | null;
-  last_ping: string | null; // 追加
+  last_ping: string | null;
 }
 
 // --- 定数 ---
+const AREAS = ["裏駐車場", "タワー", "極上仕上場"];
+
 const STAFF_LIST = [
   "岡﨑 有功", "森岡 央行", "岡本 康一", "岡本 慎平", "谷本 貢一",
   "朝栄 拓海", "亀島 大夢", "淺野 佳菜子", "坪井 美佳", "杉山 詩織",
@@ -49,6 +52,7 @@ const getMyId = () => {
 function App() {
   const myId = useMemo(() => getMyId(), []);
   const [slots, setSlots] = useState<Slot[]>([]);
+  const [currentArea, setCurrentArea] = useState(AREAS[0]); // 現在表示中の駐車場
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [targetSlotId, setTargetSlotId] = useState<number | null>(null);
@@ -65,7 +69,6 @@ function App() {
   };
   const [formData, setFormData] = useState<CarDetails>(initialFormData);
 
-  // 期限切れ判定 (5分)
   const isLockExpired = (lastPing: string | null) => {
     if (!lastPing) return true;
     const last = new Date(lastPing).getTime();
@@ -78,12 +81,14 @@ function App() {
     if (!error && data) {
       const formatted: Slot[] = data.map(d => {
         let displayLabel = d.label;
-        if (d.label.startsWith('東-')) {
+        // 「裏駐車場」の時だけラベル変換ロジックを適用
+        if (d.area_name === '裏駐車場' && d.label.startsWith('東-')) {
           const num = parseInt(d.label.replace('東-', ''));
           if (num >= 1 && num <= 10) displayLabel = `東-${num + 15}`;
         }
         return {
-          id: d.id, label: displayLabel, editing_id: d.editing_id, last_ping: d.last_ping,
+          id: d.id, label: displayLabel, area_name: d.area_name || '裏駐車場',
+          editing_id: d.editing_id, last_ping: d.last_ping,
           car: d.car_name ? {
             name: d.car_name, 
             customerName: d.customer_name || '',
@@ -112,7 +117,6 @@ function App() {
     return () => { supabase.removeChannel(channel); };
   }, [fetchSlots]);
 
-  // モーダルを開いている間の生存確認送信
   useEffect(() => {
     if (!isModalOpen || !targetSlotId) return;
     const sendPing = async () => {
@@ -129,12 +133,17 @@ function App() {
   };
 
   const handleForceUnlockAll = async () => {
-    if (!confirm('全ての「入力中」状態を強制解除しますか？\n(車両データは保持されます)')) return;
+    if (!confirm('全ての「入力中」状態を強制解除しますか？')) return;
     await supabase.from('parking_slots').update({ editing_id: null, last_ping: null }).not('editing_id', 'is', null);
     fetchSlots();
   };
 
   const resetFilters = () => { setFilterManager(''); setFilterStatus(''); };
+
+  // --- フィルタリングされたスロット ---
+  const filteredSlots = useMemo(() => {
+    return slots.filter(s => s.area_name === currentArea);
+  }, [slots, currentArea]);
 
   const handleMove = async (toId: number) => {
     const sourceSlot = slots.find(s => s.id === moveSourceId);
@@ -201,23 +210,32 @@ function App() {
 
   if (loading) return (
     <div style={loadingContainerStyle}>
-      <style>{`
-        @keyframes fill-color { 0% { width: 0%; } 100% { width: 100%; } }
-        @keyframes fade-in-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
-      <div style={logoWrapperStyle}>
-        <img src="/logo.png" alt="Logo Gray" style={{ ...logoBaseStyle, filter: 'grayscale(100%) opacity(0.15)' }} />
-        <div style={logoColorFillStyle}><img src="/logo.png" alt="Logo Color" style={logoBaseStyle} /></div>
-      </div>
-      <div style={{ marginTop: '30px', fontSize: '14px', fontWeight: 'bold', color: '#333', letterSpacing: '3px', animation: 'fade-in-up 0.8s ease-out forwards' }}>LOADING</div>
+      <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#333', letterSpacing: '3px' }}>LOADING</div>
     </div>
   );
 
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif', margin: 0, padding: 0 }}>
-      <div style={{ backgroundColor: '#fff', padding: '15px 0', position: 'relative' }}>
-        <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: 0 }}>🚗 裏駐車場管理</h1>
+      <div style={{ backgroundColor: '#fff', padding: '15px 0', position: 'relative', borderBottom: '1px solid #eee' }}>
+        <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: 0 }}>🚗 駐車場管理システム</h1>
         <button onClick={handleForceUnlockAll} style={forceUnlockButtonStyle}>⚙</button>
+      </div>
+
+      {/* 駐車場切り替えタブ */}
+      <div style={{ display: 'flex', backgroundColor: '#fff', padding: '10px', gap: '5px', overflowX: 'auto', borderBottom: '1px solid #ddd' }}>
+        {AREAS.map(area => (
+          <button 
+            key={area}
+            onClick={() => { setCurrentArea(area); setSelectedIds([]); setMoveSourceId(null); setPooledCar(null); }}
+            style={{
+              padding: '10px 15px', borderRadius: '20px', border: '1px solid #ddd', whiteSpace: 'nowrap', fontSize: '14px', fontWeight: 'bold',
+              backgroundColor: currentArea === area ? '#007bff' : '#f8f9fa',
+              color: currentArea === area ? '#fff' : '#333'
+            }}
+          >
+            {area}
+          </button>
+        ))}
       </div>
 
       <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, padding: '10px' }}>
@@ -241,13 +259,12 @@ function App() {
       </div>
 
       <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 180px 10px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1.8fr', gap: '8px' }}>
-          {slots.map((slot) => {
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(85px, 1fr))', gap: '8px' }}>
+          {filteredSlots.map((slot) => {
             const isEditing = slot.editing_id !== null && slot.editing_id !== myId && !isLockExpired(slot.last_ping);
             const isMoveSource = moveSourceId === slot.id;
             const isSelected = selectedIds.includes(slot.id);
-            const isSide = slot.label.includes('西') || slot.label.includes('東'); 
-
+            
             const matchManager = filterManager === '' || slot.car?.carManager === filterManager;
             const matchStatus = filterStatus === '' || slot.car?.status === filterStatus;
             const isHighlighted = (filterManager !== '' || filterStatus !== '') && matchManager && matchStatus && slot.car;
@@ -281,7 +298,7 @@ function App() {
               >
                 <span style={{ fontSize: '9px', color: '#888', marginBottom: '2px', position: 'relative', zIndex: 1 }}>{slot.label}</span>
                 {slot.car?.customerName && <span style={{ fontSize: '9px', color: '#666', lineHeight: '1', position: 'relative', zIndex: 1 }}>{slot.car.customerName} 様</span>}
-                <span style={{ fontWeight: 'bold', fontSize: isSide ? '13px' : '11px', textAlign: 'center', color: isEditing ? '#dc3545' : '#333', lineHeight: '1.2', position: 'relative', zIndex: 1 }}>
+                <span style={{ fontWeight: 'bold', fontSize: '12px', textAlign: 'center', color: isEditing ? '#dc3545' : '#333', lineHeight: '1.2', position: 'relative', zIndex: 1 }}>
                   {isEditing ? '入力中' : (slot.car?.name || '空')}
                 </span>
                 {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '9px', fontWeight: 'bold', marginTop: '2px', position: 'relative', zIndex: 1 }}>{slot.car.status}</span>}
@@ -295,6 +312,17 @@ function App() {
         <div style={floatingBarStyle}>
           <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択</span>
           <button onClick={() => handleBulkClear()} style={bulkDeleteButtonStyle}>削除実行</button>
+        </div>
+      )}
+
+      {/* 一時保管バー（移動モード用） */}
+      {isMoveMode && pooledCar && (
+        <div style={poolBarStyle}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '12px', color: '#666' }}>一時保管中 (移動先をタップ)</div>
+            <div style={{ fontWeight: 'bold', fontSize: '15px' }}>{pooledCar.name}</div>
+          </div>
+          <button onClick={() => setPooledCar(null)} style={poolDeleteButtonStyle}>取消</button>
         </div>
       )}
 
@@ -318,8 +346,8 @@ function App() {
                 <div style={fieldGroupStyle}>
                   <span style={labelStyle}>◻︎ プレート</span>
                   <div style={{ display: 'flex', gap: '20px', padding: '10px 0' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', fontSize: '16px' }}><input type="radio" name="plate" value="有" checked={formData.plate === '有'} onChange={e => setFormData({...formData, plate: e.target.value})} style={{ marginRight: '8px' }} /> 有</label>
-                    <label style={{ display: 'flex', alignItems: 'center', fontSize: '16px' }}><input type="radio" name="plate" value="無" checked={formData.plate === '無'} onChange={e => setFormData({...formData, plate: e.target.value})} style={{ marginRight: '8px' }} /> 無</label>
+                    <label style={{ display: 'flex', alignItems: 'center' }}><input type="radio" name="plate" value="有" checked={formData.plate === '有'} onChange={e => setFormData({...formData, plate: e.target.value})} /> 有</label>
+                    <label style={{ display: 'flex', alignItems: 'center' }}><input type="radio" name="plate" value="無" checked={formData.plate === '無'} onChange={e => setFormData({...formData, plate: e.target.value})} /> 無</label>
                   </div>
                 </div>
               </div>
@@ -357,17 +385,16 @@ function App() {
   );
 }
 
-// --- スタイル定義 (変更なし) ---
-const loadingContainerStyle = { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#fff' };
-const logoWrapperStyle = { position: 'relative' as const, width: '180px', height: 'auto', display: 'flex', justifyContent: 'center' };
-const logoBaseStyle = { width: '180px', height: 'auto', display: 'block' };
-const logoColorFillStyle = { position: 'absolute' as const, top: 0, left: 0, width: '0%', height: '100%', overflow: 'hidden', animation: 'fill-color 1.5s ease-in-out forwards' };
+// --- スタイル定義 ---
+const loadingContainerStyle = { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#fff' };
 const filterSelectStyle = { flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '13px', backgroundColor: '#f8f9fa' };
 const resetButtonStyle = { padding: '0 15px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px' };
 const navButtonStyle = { flex: 1, padding: '12px 0', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '13px' };
 const forceUnlockButtonStyle = { position: 'absolute' as const, right: '15px', top: '50%', transform: 'translateY(-50%)', border: 'none', backgroundColor: 'transparent', color: '#ddd', fontSize: '18px' };
 const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #dc3545' };
 const bulkDeleteButtonStyle = { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold' };
+const poolBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#e3f2fd', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '2px solid #2196f3' };
+const poolDeleteButtonStyle = { backgroundColor: '#666', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold' };
 const modalOverlayStyle = { position: 'fixed' as const, top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '10px' };
 const modalContentStyle = { backgroundColor: '#fff', width: '100%', maxWidth: '450px', borderRadius: '15px', maxHeight: '95vh', display: 'flex', flexDirection: 'column' as const, overflow: 'hidden' };
 const fieldGroupStyle = { display: 'flex', flexDirection: 'column' as const, gap: '4px' };
