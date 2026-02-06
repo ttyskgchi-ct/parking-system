@@ -19,6 +19,7 @@ interface Slot {
   label: string; 
   car: CarDetails | null;
   editing_id: string | null;
+  last_ping: string | null; // 追加
 }
 
 // --- 定数 ---
@@ -64,6 +65,14 @@ function App() {
   };
   const [formData, setFormData] = useState<CarDetails>(initialFormData);
 
+  // 期限切れ判定 (5分)
+  const isLockExpired = (lastPing: string | null) => {
+    if (!lastPing) return true;
+    const last = new Date(lastPing).getTime();
+    const now = new Date().getTime();
+    return (now - last) > 5 * 60 * 1000;
+  };
+
   const fetchSlots = useCallback(async () => {
     const { data, error } = await supabase.from('parking_slots').select('*').order('id', { ascending: true });
     if (!error && data) {
@@ -74,7 +83,7 @@ function App() {
           if (num >= 1 && num <= 10) displayLabel = `東-${num + 15}`;
         }
         return {
-          id: d.id, label: displayLabel, editing_id: d.editing_id,
+          id: d.id, label: displayLabel, editing_id: d.editing_id, last_ping: d.last_ping,
           car: d.car_name ? {
             name: d.car_name, 
             customerName: d.customer_name || '',
@@ -103,14 +112,25 @@ function App() {
     return () => { supabase.removeChannel(channel); };
   }, [fetchSlots]);
 
+  // モーダルを開いている間の生存確認送信
+  useEffect(() => {
+    if (!isModalOpen || !targetSlotId) return;
+    const sendPing = async () => {
+      await supabase.from('parking_slots').update({ last_ping: new Date().toISOString() }).eq('id', targetSlotId);
+    };
+    sendPing();
+    const interval = setInterval(sendPing, 30000);
+    return () => clearInterval(interval);
+  }, [isModalOpen, targetSlotId]);
+
   const getNowTimestamp = () => {
     const now = new Date();
     return `${now.getFullYear()}/${(now.getMonth()+1)}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
   };
 
   const handleForceUnlockAll = async () => {
-    if (!confirm('全ての「入力中」状態を強制解除しますか？')) return;
-    await supabase.from('parking_slots').update({ editing_id: null }).not('editing_id', 'is', null);
+    if (!confirm('全ての「入力中」状態を強制解除しますか？\n(車両データは保持されます)')) return;
+    await supabase.from('parking_slots').update({ editing_id: null, last_ping: null }).not('editing_id', 'is', null);
     fetchSlots();
   };
 
@@ -123,10 +143,10 @@ function App() {
       car_name: sourceSlot.car.name, customer_name: sourceSlot.car.customerName, color: sourceSlot.car.color, status: sourceSlot.car.status,
       plate: sourceSlot.car.plate, car_manager: sourceSlot.car.carManager,
       entry_manager: sourceSlot.car.entryManager, entry_date: sourceSlot.car.entryDate,
-      memo: sourceSlot.car.memo, editing_id: null
+      memo: sourceSlot.car.memo, editing_id: null, last_ping: null
     }).eq('id', toId);
     await supabase.from('parking_slots').update({
-      car_name: null, customer_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null, editing_id: null
+      car_name: null, customer_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null, editing_id: null, last_ping: null
     }).eq('id', moveSourceId);
     setMoveSourceId(null);
     fetchSlots();
@@ -138,24 +158,25 @@ function App() {
       car_name: pooledCar.name, customer_name: pooledCar.customerName, color: pooledCar.color, status: pooledCar.status,
       plate: pooledCar.plate, car_manager: pooledCar.carManager,
       entry_manager: pooledCar.entryManager, entry_date: pooledCar.entryDate,
-      memo: pooledCar.memo, editing_id: null
+      memo: pooledCar.memo, editing_id: null, last_ping: null
     }).eq('id', toId);
     setPooledCar(null);
     fetchSlots();
   };
 
   const openForm = async (slot: Slot) => {
-    if (slot.editing_id && slot.editing_id !== myId) {
+    const isLocked = slot.editing_id && !isLockExpired(slot.last_ping);
+    if (isLocked && slot.editing_id !== myId) {
        if(!confirm('他の方が入力中ですが、強制的に編集を開始しますか？')) return;
     }
-    await supabase.from('parking_slots').update({ editing_id: myId }).eq('id', slot.id);
+    await supabase.from('parking_slots').update({ editing_id: myId, last_ping: new Date().toISOString() }).eq('id', slot.id);
     setTargetSlotId(slot.id);
     setFormData(slot.car || initialFormData);
     setIsModalOpen(true);
   };
 
   const closeModal = async () => {
-    if (targetSlotId) await supabase.from('parking_slots').update({ editing_id: null }).eq('id', targetSlotId);
+    if (targetSlotId) await supabase.from('parking_slots').update({ editing_id: null, last_ping: null }).eq('id', targetSlotId);
     setIsModalOpen(false); setTargetSlotId(null); fetchSlots();
   };
 
@@ -165,7 +186,7 @@ function App() {
       car_name: formData.name, customer_name: formData.customerName, color: formData.color, status: formData.status,
       plate: formData.plate, car_manager: formData.carManager,
       entry_manager: formData.entryManager, entry_date: formData.entryDate, memo: formData.memo,
-      editing_id: null
+      editing_id: null, last_ping: null
     }).eq('id', targetSlotId);
     setIsModalOpen(false); setTargetSlotId(null); fetchSlots();
   };
@@ -173,7 +194,7 @@ function App() {
   const handleBulkClear = async () => {
     if (!confirm(`${selectedIds.length}台を削除しますか？`)) return;
     await supabase.from('parking_slots').update({ 
-      car_name: null, customer_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null, editing_id: null 
+      car_name: null, customer_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null, editing_id: null, last_ping: null
     }).in('id', selectedIds);
     setSelectedIds([]); setIsSelectionMode(false); fetchSlots();
   };
@@ -186,16 +207,9 @@ function App() {
       `}</style>
       <div style={logoWrapperStyle}>
         <img src="/logo.png" alt="Logo Gray" style={{ ...logoBaseStyle, filter: 'grayscale(100%) opacity(0.15)' }} />
-        <div style={logoColorFillStyle}>
-          <img src="/logo.png" alt="Logo Color" style={logoBaseStyle} />
-        </div>
+        <div style={logoColorFillStyle}><img src="/logo.png" alt="Logo Color" style={logoBaseStyle} /></div>
       </div>
-      <div style={{ marginTop: '30px', fontSize: '14px', fontWeight: 'bold', color: '#333', letterSpacing: '3px', animation: 'fade-in-up 0.8s ease-out forwards' }}>
-        LOADING
-      </div>
-      <div style={{ marginTop: '5px', fontSize: '10px', color: '#aaa', animation: 'fade-in-up 1s ease-out forwards' }}>
-        裏駐車場管理システム
-      </div>
+      <div style={{ marginTop: '30px', fontSize: '14px', fontWeight: 'bold', color: '#333', letterSpacing: '3px', animation: 'fade-in-up 0.8s ease-out forwards' }}>LOADING</div>
     </div>
   );
 
@@ -229,7 +243,7 @@ function App() {
       <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 180px 10px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1.8fr', gap: '8px' }}>
           {slots.map((slot) => {
-            const isEditing = slot.editing_id !== null && slot.editing_id !== myId;
+            const isEditing = slot.editing_id !== null && slot.editing_id !== myId && !isLockExpired(slot.last_ping);
             const isMoveSource = moveSourceId === slot.id;
             const isSelected = selectedIds.includes(slot.id);
             const isSide = slot.label.includes('西') || slot.label.includes('東'); 
@@ -238,7 +252,6 @@ function App() {
             const matchStatus = filterStatus === '' || slot.car?.status === filterStatus;
             const isHighlighted = (filterManager !== '' || filterStatus !== '') && matchManager && matchStatus && slot.car;
 
-            // プレート無しの場合の斜線スタイル (左上から右下へ)
             const diagonalStyle = !isEditing && slot.car?.plate === '無' 
               ? { backgroundImage: 'linear-gradient(to bottom right, transparent calc(50% - 2px), rgba(220, 53, 69, 0.4) 50%, transparent calc(50% + 2px))' }
               : {};
@@ -263,7 +276,7 @@ function App() {
                   backgroundColor: isEditing ? '#ffe5e5' : (isHighlighted ? '#e3f2fd' : (isMoveSource ? '#ffc107' : (isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#f0f0f0')))),
                   borderColor: isEditing ? '#dc3545' : (isHighlighted ? '#007bff' : (isMoveSource ? '#ff9800' : (isSelected ? '#dc3545' : (slot.car ? '#007bff' : '#ccc')))),
                   borderWidth: (isMoveSource || isSelected || isEditing || isHighlighted) ? '3px' : '1px',
-                  ...diagonalStyle // 斜線を適用
+                  ...diagonalStyle
                 }}
               >
                 <span style={{ fontSize: '9px', color: '#888', marginBottom: '2px', position: 'relative', zIndex: 1 }}>{slot.label}</span>
