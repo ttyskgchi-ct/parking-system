@@ -139,8 +139,20 @@ function App() {
 
   const resetFilters = () => { setFilterManager(''); setFilterStatus(''); };
 
+  // --- タワー用の特別なソートとフィルタリング ---
   const filteredSlots = useMemo(() => {
-    return slots.filter(s => s.area_name === currentArea);
+    const base = slots.filter(s => s.area_name === currentArea);
+    if (currentArea === 'タワー') {
+      return [...base].sort((a, b) => {
+        const aNum = parseInt(a.label.replace(/[^0-9]/g, '')) || 0;
+        const bNum = parseInt(b.label.replace(/[^0-9]/g, '')) || 0;
+        const aSide = aNum <= 15 ? 0 : 1; // 0:左列(1-15), 1:右列(16-30)
+        const bSide = bNum <= 15 ? 0 : 1;
+        if (aSide !== bSide) return aSide - bSide;
+        return aNum - bNum;
+      });
+    }
+    return base;
   }, [slots, currentArea]);
 
   const handleMove = async (toId: number) => {
@@ -222,7 +234,7 @@ function App() {
 
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif', margin: 0, padding: 0 }}>
-      <div style={{ backgroundColor: '#fff', padding: '15px 0', position: 'relative' }}>
+      <div style={{ backgroundColor: '#fff', padding: '15px 0', position: 'relative', borderBottom: '1px solid #eee' }}>
         <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: 0 }}>🚗 拠点別駐車場管理</h1>
         <button onClick={handleForceUnlockAll} style={forceUnlockButtonStyle}>⚙</button>
       </div>
@@ -265,11 +277,14 @@ function App() {
       </div>
 
       <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 180px 10px' }}>
-        {/* 裏駐車場だけ元の5列配置、それ以外は自動並び */}
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: currentArea === '裏駐車場' ? '1.8fr 1fr 1fr 1fr 1.8fr' : 'repeat(auto-fill, minmax(85px, 1fr))', 
-          gap: '8px' 
+          gridTemplateColumns: 
+            currentArea === '裏駐車場' ? '1.8fr 1fr 1fr 1fr 1.8fr' : 
+            currentArea === 'タワー' ? '1fr 1fr' : 'repeat(auto-fill, minmax(85px, 1fr))', 
+          gap: '12px',
+          maxWidth: currentArea === 'タワー' ? '500px' : '950px',
+          margin: '0 auto' 
         }}>
           {filteredSlots.map((slot) => {
             const isEditing = slot.editing_id !== null && slot.editing_id !== myId && !isLockExpired(slot.last_ping);
@@ -297,19 +312,20 @@ function App() {
                   } else { openForm(slot); }
                 }}
                 style={{
-                  minHeight: '85px', borderRadius: '8px', border: '1px solid #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: '4px', position: 'relative',
+                  minHeight: currentArea === 'タワー' ? '100px' : '85px',
+                  borderRadius: '8px', border: '1px solid #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: '4px', position: 'relative',
                   backgroundColor: isEditing ? '#ffe5e5' : (isMoveSource ? '#ffc107' : (isSelected ? '#fff3cd' : (slot.car ? '#fff' : '#f0f0f0'))),
                   borderColor: isEditing ? '#dc3545' : (isMoveSource ? '#ff9800' : (isSelected ? '#dc3545' : (slot.car ? '#007bff' : '#ccc'))),
                   borderWidth: (isMoveSource || isSelected || isEditing) ? '3px' : '1px',
                   ...diagonalStyle
                 }}
               >
-                <span style={{ fontSize: '9px', color: '#888', marginBottom: '2px', position: 'relative', zIndex: 1 }}>{slot.label}</span>
-                {slot.car?.customerName && <span style={{ fontSize: '9px', color: '#666', lineHeight: '1', position: 'relative', zIndex: 1 }}>{slot.car.customerName} 様</span>}
+                <span style={{ fontSize: '10px', color: '#888', marginBottom: '2px', position: 'relative', zIndex: 1 }}>{slot.label}</span>
+                {slot.car?.customerName && <span style={{ fontSize: '10px', color: '#666', lineHeight: '1', position: 'relative', zIndex: 1 }}>{slot.car.customerName} 様</span>}
                 <span style={{ fontWeight: 'bold', fontSize: (currentArea === '裏駐車場' && isSide) ? '13px' : '11px', textAlign: 'center', color: isEditing ? '#dc3545' : '#333', lineHeight: '1.2', position: 'relative', zIndex: 1 }}>
                   {isEditing ? '入力中' : (slot.car?.name || '空')}
                 </span>
-                {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '9px', fontWeight: 'bold', marginTop: '2px', position: 'relative', zIndex: 1 }}>{slot.car.status}</span>}
+                {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '10px', fontWeight: 'bold', marginTop: '2px', position: 'relative', zIndex: 1 }}>{slot.car.status}</span>}
               </div>
             );
           })}
