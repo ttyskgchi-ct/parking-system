@@ -175,7 +175,7 @@ function App() {
     await supabase.from('parking_slots').update({
       car_name: pooledCar.name, customer_name: pooledCar.customerName, color: pooledCar.color, status: pooledCar.status,
       plate: pooledCar.plate, car_manager: pooledCar.carManager,
-      entry_manager: pooledCar.entryManager, entry_date: pooledCar.entry_date,
+      entry_manager: pooledCar.entryManager, entry_date: pooledCar.entryDate, // ← ここを修正しました (entry_date -> entryDate)
       memo: pooledCar.memo, editing_id: null, last_ping: null
     }).eq('id', toId);
     setPooledCar(null);
@@ -288,7 +288,6 @@ function App() {
             const isSelected = selectedIds.includes(slot.id);
             const isSide = slot.label.includes('西') || slot.label.includes('東');
 
-            // --- 絞り込みハイライト判定 ---
             const isHighlighted = (filterManager || filterStatus) && 
               (!filterManager || slot.car?.carManager === filterManager) &&
               (!filterStatus || slot.car?.status === filterStatus) &&
@@ -298,12 +297,11 @@ function App() {
               ? { backgroundImage: 'linear-gradient(to bottom right, transparent calc(50% - 2px), rgba(220, 53, 69, 0.4) 50%, transparent calc(50% + 2px))' }
               : {};
 
-            // 背景色の決定ロジックを以前の「着色タイプ」に固定
-            let bgColor = '#f0f0f0'; // 空き
+            let bgColor = '#f0f0f0';
             if (isEditing) bgColor = '#ffe5e5';
             else if (isMoveSource) bgColor = '#ffc107';
             else if (isSelected) bgColor = '#fff3cd';
-            else if (isHighlighted) bgColor = '#e3f2fd'; // 絞り込み該当（薄い青）
+            else if (isHighlighted) bgColor = '#e3f2fd';
             else if (slot.car) bgColor = '#fff';
 
             return (
@@ -327,7 +325,7 @@ function App() {
                   backgroundColor: bgColor,
                   borderColor: isEditing ? '#dc3545' : (isMoveSource ? '#ff9800' : (isSelected ? '#dc3545' : (isHighlighted ? '#007bff' : (slot.car ? '#007bff' : '#ccc')))),
                   borderWidth: (isMoveSource || isSelected || isEditing || isHighlighted) ? '3px' : '1px',
-                  opacity: (filterManager || filterStatus) && !isHighlighted ? 0.3 : 1, // 該当しないものを薄く
+                  opacity: (filterManager || filterStatus) && !isHighlighted ? 0.3 : 1,
                   ...diagonalStyle
                 }}
               >
