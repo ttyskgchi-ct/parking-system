@@ -243,8 +243,8 @@ function App() {
         {currentArea === '極上仕上場' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
             {[
-              { label: "東エリア (4列)", keyword: "東", cols: 4 },
-              { label: "西エリア (2列)", keyword: "西", cols: 2 },
+              { label: "東エリア", keyword: "東", cols: 4 },
+              { label: "西エリア", keyword: "西", cols: 2 },
               { label: "ポート", keyword: "ポート", cols: 3 },
               { label: "スタジオ / 掃除スペース", keyword: ["スタジオ", "掃除スペース"], cols: 2 },
               { label: "予備", keyword: "予備", cols: 4 }
