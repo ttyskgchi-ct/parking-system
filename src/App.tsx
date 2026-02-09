@@ -104,7 +104,6 @@ function App() {
 
   const resetFilters = () => { setFilterManager(''); setFilterStatus(''); };
 
-  // --- フィルタ・ソートロジック ---
   const filteredSlots = useMemo(() => {
     const base = slots.filter(s => s.area_name === currentArea);
     if (currentArea === 'タワー') {
@@ -117,7 +116,6 @@ function App() {
         return aNum - bNum;
       });
     }
-    // 極上仕上場の並び順（PDFの意図：東、西、予備、ポート、その他）
     if (currentArea === '極上仕上場') {
       const order = ["東", "西", "予備", "ポート", "スタジオ", "掃除"];
       return [...base].sort((a, b) => {
@@ -133,14 +131,22 @@ function App() {
   const handleMove = async (toId: number) => {
     const src = slots.find(s => s.id === moveSourceId);
     if (!src || !src.car) return;
-    await supabase.from('parking_slots').update({ ...src.car, car_name: src.car.name, customer_name: src.car.customerName, editing_id: null, last_ping: null }).eq('id', toId);
+    await supabase.from('parking_slots').update({
+      car_name: src.car.name, customer_name: src.car.customerName, color: src.car.color, status: src.car.status,
+      plate: src.car.plate, car_manager: src.car.carManager, entry_manager: src.car.entryManager, 
+      entry_date: src.car.entryDate, memo: src.car.memo, editing_id: null, last_ping: null
+    }).eq('id', toId);
     await supabase.from('parking_slots').update({ car_name: null, customer_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null, editing_id: null, last_ping: null }).eq('id', moveSourceId);
     setMoveSourceId(null); fetchSlots();
   };
 
   const handlePlacePooledCar = async (toId: number) => {
     if (!pooledCar) return;
-    await supabase.from('parking_slots').update({ ...pooledCar, car_name: pooledCar.name, customer_name: pooledCar.customerName, editing_id: null, last_ping: null }).eq('id', toId);
+    await supabase.from('parking_slots').update({ 
+      car_name: pooledCar.name, customer_name: pooledCar.customerName, color: pooledCar.color, status: pooledCar.status,
+      plate: pooledCar.plate, car_manager: pooledCar.carManager, entry_manager: pooledCar.entryManager, 
+      entry_date: pooledCar.entryDate, memo: pooledCar.memo, editing_id: null, last_ping: null 
+    }).eq('id', toId);
     setPooledCar(null); fetchSlots();
   };
 
@@ -192,13 +198,11 @@ function App() {
 
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif', margin: 0, padding: 0 }}>
-      {/* ヘッダーエリア */}
       <div style={{ backgroundColor: '#fff', padding: '15px 0', position: 'relative', borderBottom: '1px solid #eee' }}>
         <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: 0 }}>🚗 拠点別駐車場管理</h1>
         <button onClick={handleForceUnlockAll} style={forceUnlockButtonStyle}>⚙</button>
       </div>
 
-      {/* エリア切替 */}
       <div style={{ display: 'flex', backgroundColor: '#fff', padding: '10px', gap: '8px', overflowX: 'auto', borderBottom: '1px solid #ddd', justifyContent: 'center' }}>
         {AREAS.map(area => (
           <button key={area} onClick={() => { setCurrentArea(area); setSelectedIds([]); setMoveSourceId(null); setPooledCar(null); }} 
@@ -208,7 +212,6 @@ function App() {
         ))}
       </div>
 
-      {/* フィルタ・モード切替（固定） */}
       <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, padding: '10px' }}>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto 12px auto' }}>
           <select value={filterManager} onChange={(e) => setFilterManager(e.target.value)} style={filterSelectStyle}>
@@ -228,14 +231,12 @@ function App() {
         </div>
       </div>
 
-      {/* メインレイアウトエリア */}
       <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 180px 10px' }}>
         <div style={{ 
           display: 'grid', 
-          // 裏駐車場とタワーの比率は絶対に変えない
           gridTemplateColumns: currentArea === '裏駐車場' ? '1.8fr 1fr 1fr 1fr 1.8fr' : 
                                currentArea === 'タワー' ? '1fr 1fr' : 
-                               'repeat(auto-fill, minmax(80px, 1fr))', 
+                               'repeat(4, 1fr)', 
           gap: '12px',
           maxWidth: currentArea === 'タワー' ? '500px' : '950px',
           margin: '0 auto' 
@@ -258,9 +259,6 @@ function App() {
             else if (isHighlighted) bgColor = '#e3f2fd';
             else if (slot.car) bgColor = '#fff';
 
-            // 極上仕上場専用のラベル色分け（任意）
-            const labelColor = (currentArea === '極上仕上場' && (slot.label.includes('スタジオ') || slot.label.includes('掃除'))) ? '#6c757d' : '#888';
-
             return (
               <div key={slot.id} 
                 onClick={() => {
@@ -282,7 +280,7 @@ function App() {
                   ...diagonalStyle
                 }}
               >
-                <span style={{ fontSize: '10px', color: labelColor, marginBottom: '2px' }}>{slot.label}</span>
+                <span style={{ fontSize: '10px', color: '#888', marginBottom: '2px' }}>{slot.label}</span>
                 {slot.car?.customerName && <span style={{ fontSize: '10px', color: '#666', lineHeight: '1' }}>{slot.car.customerName} 様</span>}
                 <span style={{ fontWeight: 'bold', fontSize: (isSide) ? '13px' : '11px', textAlign: 'center', color: isEditing ? '#dc3545' : '#333' }}>
                   {isEditing ? '入力中' : (slot.car?.name || '空')}
@@ -294,7 +292,6 @@ function App() {
         </div>
       </div>
 
-      {/* 削除・モーダル・スタイル等は安定版を維持（省略せず全て含みます） */}
       {isSelectionMode && selectedIds.length > 0 && (
         <div style={floatingBarStyle}>
           <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択</span>
@@ -334,7 +331,6 @@ function App() {
   );
 }
 
-// --- スタイル定義 (安定版を完全復元) ---
 const loadingContainerStyle = { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#fff' };
 const logoWrapperStyle = { position: 'relative' as const, width: '180px', height: 'auto', display: 'flex', justifyContent: 'center' };
 const logoBaseStyle = { width: '180px', height: 'auto', display: 'block' };
