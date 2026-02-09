@@ -203,7 +203,13 @@ function App() {
     );
   };
 
-  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>読み込み中...</div>;
+  // --- ロード画面 ---
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '20px' }}>
+      <div style={{ fontSize: '50px' }}>🚗</div>
+      <div style={{ fontSize: '14px', color: '#666' }}>読み込み中...</div>
+    </div>
+  );
 
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif' }}>
@@ -263,7 +269,12 @@ function App() {
             })}
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: currentArea === '裏駐車場' ? '1.8fr 1fr 1fr 1fr 1.8fr' : '1fr 1fr', gap: '12px' }}>
+          /* 裏駐車場とタワー：裏駐車場の場合は横長レイアウトを適用 */
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: currentArea === '裏駐車場' ? '1.8fr 1fr 1fr 1fr 1.8fr' : '1fr 1fr', 
+            gap: '12px' 
+          }}>
             {displaySlots.map(slot => renderSlot(slot))}
           </div>
         )}
