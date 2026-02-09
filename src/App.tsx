@@ -203,11 +203,11 @@ function App() {
     );
   };
 
-  // --- ロード画面 ---
+  // --- ロード画面の復元 ---
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '20px' }}>
-      <div style={{ fontSize: '50px' }}>🚗</div>
-      <div style={{ fontSize: '14px', color: '#666' }}>読み込み中...</div>
+      <div style={{ fontSize: '60px', animation: 'bounce 2s infinite' }}>🚗</div>
+      <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#007bff' }}>データを読み込み中...</div>
     </div>
   );
 
@@ -268,13 +268,19 @@ function App() {
               );
             })}
           </div>
+        ) : currentArea === '裏駐車場' ? (
+          /* 裏駐車場の「完成版レイアウト」を完全復旧 */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1.8fr', gap: '12px' }}>
+              {displaySlots.filter(s => !s.label.includes('入口')).map(slot => renderSlot(slot))}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', width: '40%' }}>
+              {displaySlots.filter(s => s.label.includes('入口')).map(slot => renderSlot(slot))}
+            </div>
+          </div>
         ) : (
-          /* 裏駐車場とタワー：裏駐車場の場合は横長レイアウトを適用 */
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: currentArea === '裏駐車場' ? '1.8fr 1fr 1fr 1fr 1.8fr' : '1fr 1fr', 
-            gap: '12px' 
-          }}>
+          /* タワーの「完成版レイアウト」を完全復旧 (2列) */
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             {displaySlots.map(slot => renderSlot(slot))}
           </div>
         )}
