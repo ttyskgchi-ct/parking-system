@@ -3,42 +3,19 @@ import { supabase } from './supabaseClient'
 
 // --- 型定義 ---
 interface CarDetails {
-  name: string; 
-  customerName: string; 
-  color: string; 
-  status: string; 
-  plate: string;
-  carManager: string; 
-  entryManager: string; 
-  entryDate: string; 
-  memo: string;
+  name: string; customerName: string; color: string; status: string; plate: string;
+  carManager: string; entryManager: string; entryDate: string; memo: string;
 }
 
 interface Slot {
-  id: number; 
-  label: string; 
-  area_name: string;
-  car: CarDetails | null;
-  editing_id: string | null;
-  last_ping: string | null;
+  id: number; label: string; area_name: string; car: CarDetails | null;
+  editing_id: string | null; last_ping: string | null;
 }
 
 // --- 定数 ---
 const AREAS = ["裏駐車場", "タワー", "極上仕上場"];
-
-const STAFF_LIST = [
-  "岡﨑 有功", "森岡 央行", "岡本 康一", "岡本 慎平", "谷本 貢一",
-  "朝栄 拓海", "亀島 大夢", "淺野 佳菜子", "坪井 美佳", "杉山 詩織",
-  "難波 成美", "平井 旭", "中村 俊也", "岸戸 彪我", "藤田 陸",
-  "藤田 佳代", "福家 君佳", "安達 未来", "田中 美夕日", "平山 暁美",
-  "松本 由香", "高下 ゆかり", "松浦 広司", "平塚 円", "坂口 達哉",
-  "藤井 武司", "上山 紀昭"
-];
-
-const STATUS_LIST = [
-  '売約済(小売)', '売約済(AA/業販)', '在庫', 'AA行き', '解体予定', 
-  '代車', 'レンタカー', '車検預かり', '整備預かり', 'その他'
-];
+const STAFF_LIST = ["岡﨑 有功", "森岡 央行", "岡本 康一", "岡本 慎平", "谷本 貢一", "朝栄 拓海", "亀島 大夢", "淺野 佳菜子", "坪井 美佳", "杉山 詩織", "難波 成美", "平井 旭", "中村 俊也", "岸戸 彪我", "藤田 陸", "藤田 佳代", "福家 君佳", "安達 未来", "田中 美夕日", "平山 暁美", "松本 由香", "高下 ゆかり", "松浦 広司", "平塚 円", "坂口 達哉", "藤井 武司", "上山 紀昭"];
+const STATUS_LIST = ['売約済(小売)', '売約済(AA/業販)', '在庫', 'AA行き', '解体予定', '代車', 'レンタカー', '車検預かり', '整備預かり', 'その他'];
 
 const getMyId = () => {
   let id = localStorage.getItem('parking_user_id');
@@ -89,15 +66,9 @@ function App() {
           id: d.id, label: displayLabel, area_name: d.area_name || '裏駐車場',
           editing_id: d.editing_id, last_ping: d.last_ping,
           car: d.car_name ? {
-            name: d.car_name, 
-            customerName: d.customer_name || '',
-            color: d.color, 
-            status: d.status || '',
-            plate: d.plate || '有',
-            carManager: d.car_manager || '',
-            entryManager: d.entry_manager || '', 
-            entryDate: d.entry_date, 
-            memo: d.memo
+            name: d.car_name, customerName: d.customer_name || '', color: d.color, status: d.status || '',
+            plate: d.plate || '有', carManager: d.car_manager || '', entryManager: d.entry_manager || '', 
+            entryDate: d.entry_date, memo: d.memo
           } : null
         };
       });
@@ -108,19 +79,13 @@ function App() {
 
   useEffect(() => {
     fetchSlots();
-    const channel = supabase.channel('schema-db-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'parking_slots' }, () => {
-        fetchSlots();
-      })
-      .subscribe();
+    const channel = supabase.channel('schema-db-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'parking_slots' }, () => fetchSlots()).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [fetchSlots]);
 
   useEffect(() => {
     if (!isModalOpen || !targetSlotId) return;
-    const sendPing = async () => {
-      await supabase.from('parking_slots').update({ last_ping: new Date().toISOString() }).eq('id', targetSlotId);
-    };
+    const sendPing = async () => { await supabase.from('parking_slots').update({ last_ping: new Date().toISOString() }).eq('id', targetSlotId); };
     sendPing();
     const interval = setInterval(sendPing, 30000);
     return () => clearInterval(interval);
@@ -139,47 +104,44 @@ function App() {
 
   const resetFilters = () => { setFilterManager(''); setFilterStatus(''); };
 
+  // --- フィルタ・ソートロジック ---
   const filteredSlots = useMemo(() => {
     const base = slots.filter(s => s.area_name === currentArea);
     if (currentArea === 'タワー') {
       return [...base].sort((a, b) => {
         const aNum = parseInt(a.label.replace(/[^0-9]/g, '')) || 0;
         const bNum = parseInt(b.label.replace(/[^0-9]/g, '')) || 0;
-        const aSide = aNum <= 15 ? 0 : 1; 
+        const aSide = aNum <= 15 ? 0 : 1;
         const bSide = bNum <= 15 ? 0 : 1;
         if (aSide !== bSide) return aSide - bSide;
         return aNum - bNum;
+      });
+    }
+    // 極上仕上場の並び順（PDFの意図：東、西、予備、ポート、その他）
+    if (currentArea === '極上仕上場') {
+      const order = ["東", "西", "予備", "ポート", "スタジオ", "掃除"];
+      return [...base].sort((a, b) => {
+        const aCat = order.findIndex(o => a.label.includes(o));
+        const bCat = order.findIndex(o => b.label.includes(o));
+        if (aCat !== bCat) return aCat - bCat;
+        return a.label.localeCompare(b.label, 'ja', {numeric: true});
       });
     }
     return base;
   }, [slots, currentArea]);
 
   const handleMove = async (toId: number) => {
-    const sourceSlot = slots.find(s => s.id === moveSourceId);
-    if (!sourceSlot || !sourceSlot.car) return;
-    await supabase.from('parking_slots').update({
-      car_name: sourceSlot.car.name, customer_name: sourceSlot.car.customerName, color: sourceSlot.car.color, status: sourceSlot.car.status,
-      plate: sourceSlot.car.plate, car_manager: sourceSlot.car.carManager,
-      entry_manager: sourceSlot.car.entryManager, entry_date: sourceSlot.car.entryDate,
-      memo: sourceSlot.car.memo, editing_id: null, last_ping: null
-    }).eq('id', toId);
-    await supabase.from('parking_slots').update({
-      car_name: null, customer_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null, editing_id: null, last_ping: null
-    }).eq('id', moveSourceId);
-    setMoveSourceId(null);
-    fetchSlots();
+    const src = slots.find(s => s.id === moveSourceId);
+    if (!src || !src.car) return;
+    await supabase.from('parking_slots').update({ ...src.car, car_name: src.car.name, customer_name: src.car.customerName, editing_id: null, last_ping: null }).eq('id', toId);
+    await supabase.from('parking_slots').update({ car_name: null, customer_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null, editing_id: null, last_ping: null }).eq('id', moveSourceId);
+    setMoveSourceId(null); fetchSlots();
   };
 
   const handlePlacePooledCar = async (toId: number) => {
     if (!pooledCar) return;
-    await supabase.from('parking_slots').update({
-      car_name: pooledCar.name, customer_name: pooledCar.customerName, color: pooledCar.color, status: pooledCar.status,
-      plate: pooledCar.plate, car_manager: pooledCar.carManager,
-      entry_manager: pooledCar.entryManager, entry_date: pooledCar.entryDate, // ← ここを修正しました (entry_date -> entryDate)
-      memo: pooledCar.memo, editing_id: null, last_ping: null
-    }).eq('id', toId);
-    setPooledCar(null);
-    fetchSlots();
+    await supabase.from('parking_slots').update({ ...pooledCar, car_name: pooledCar.name, customer_name: pooledCar.customerName, editing_id: null, last_ping: null }).eq('id', toId);
+    setPooledCar(null); fetchSlots();
   };
 
   const openForm = async (slot: Slot) => {
@@ -188,9 +150,7 @@ function App() {
        if(!confirm('他の方が入力中ですが、強制的に編集を開始しますか？')) return;
     }
     await supabase.from('parking_slots').update({ editing_id: myId, last_ping: new Date().toISOString() }).eq('id', slot.id);
-    setTargetSlotId(slot.id);
-    setFormData(slot.car || initialFormData);
-    setIsModalOpen(true);
+    setTargetSlotId(slot.id); setFormData(slot.car || initialFormData); setIsModalOpen(true);
   };
 
   const closeModal = async () => {
@@ -202,9 +162,8 @@ function App() {
     if (!targetSlotId) return;
     await supabase.from('parking_slots').update({
       car_name: formData.name, customer_name: formData.customerName, color: formData.color, status: formData.status,
-      plate: formData.plate, car_manager: formData.carManager,
-      entry_manager: formData.entryManager, entry_date: formData.entryDate, memo: formData.memo,
-      editing_id: null, last_ping: null
+      plate: formData.plate, car_manager: formData.carManager, entry_manager: formData.entryManager, 
+      entry_date: formData.entryDate, memo: formData.memo, editing_id: null, last_ping: null
     }).eq('id', targetSlotId);
     setIsModalOpen(false); setTargetSlotId(null); fetchSlots();
   };
@@ -233,27 +192,23 @@ function App() {
 
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif', margin: 0, padding: 0 }}>
+      {/* ヘッダーエリア */}
       <div style={{ backgroundColor: '#fff', padding: '15px 0', position: 'relative', borderBottom: '1px solid #eee' }}>
         <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: 0 }}>🚗 拠点別駐車場管理</h1>
         <button onClick={handleForceUnlockAll} style={forceUnlockButtonStyle}>⚙</button>
       </div>
 
+      {/* エリア切替 */}
       <div style={{ display: 'flex', backgroundColor: '#fff', padding: '10px', gap: '8px', overflowX: 'auto', borderBottom: '1px solid #ddd', justifyContent: 'center' }}>
         {AREAS.map(area => (
-          <button 
-            key={area}
-            onClick={() => { setCurrentArea(area); setSelectedIds([]); setMoveSourceId(null); setPooledCar(null); }}
-            style={{
-              padding: '8px 20px', borderRadius: '20px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer',
-              backgroundColor: currentArea === area ? '#007bff' : '#f8f9fa',
-              color: currentArea === area ? '#fff' : '#333'
-            }}
-          >
+          <button key={area} onClick={() => { setCurrentArea(area); setSelectedIds([]); setMoveSourceId(null); setPooledCar(null); }} 
+            style={{ padding: '8px 20px', borderRadius: '20px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer', backgroundColor: currentArea === area ? '#007bff' : '#f8f9fa', color: currentArea === area ? '#fff' : '#333' }}>
             {area}
           </button>
         ))}
       </div>
 
+      {/* フィルタ・モード切替（固定） */}
       <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, padding: '10px' }}>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto 12px auto' }}>
           <select value={filterManager} onChange={(e) => setFilterManager(e.target.value)} style={filterSelectStyle}>
@@ -266,7 +221,6 @@ function App() {
           </select>
           <button onClick={resetFilters} style={resetButtonStyle}>解除</button>
         </div>
-
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto' }}>
           <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(false); setSelectedIds([]); setMoveSourceId(null); setPooledCar(null); }} style={{ ...navButtonStyle, backgroundColor: (!isSelectionMode && !isMoveMode) ? '#007bff' : '#f8f9fa', color: (!isSelectionMode && !isMoveMode) ? '#fff' : '#333' }}>入力</button>
           <button onClick={() => { setIsSelectionMode(false); setIsMoveMode(true); setSelectedIds([]); setMoveSourceId(null); }} style={{ ...navButtonStyle, backgroundColor: isMoveMode ? '#ffc107' : '#f8f9fa', color: '#000' }}>移動</button>
@@ -274,10 +228,14 @@ function App() {
         </div>
       </div>
 
+      {/* メインレイアウトエリア */}
       <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 180px 10px' }}>
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: currentArea === '裏駐車場' ? '1.8fr 1fr 1fr 1fr 1.8fr' : currentArea === 'タワー' ? '1fr 1fr' : 'repeat(auto-fill, minmax(85px, 1fr))', 
+          // 裏駐車場とタワーの比率は絶対に変えない
+          gridTemplateColumns: currentArea === '裏駐車場' ? '1.8fr 1fr 1fr 1fr 1.8fr' : 
+                               currentArea === 'タワー' ? '1fr 1fr' : 
+                               'repeat(auto-fill, minmax(80px, 1fr))', 
           gap: '12px',
           maxWidth: currentArea === 'タワー' ? '500px' : '950px',
           margin: '0 auto' 
@@ -287,11 +245,7 @@ function App() {
             const isMoveSource = moveSourceId === slot.id;
             const isSelected = selectedIds.includes(slot.id);
             const isSide = slot.label.includes('西') || slot.label.includes('東');
-
-            const isHighlighted = (filterManager || filterStatus) && 
-              (!filterManager || slot.car?.carManager === filterManager) &&
-              (!filterStatus || slot.car?.status === filterStatus) &&
-              slot.car !== null;
+            const isHighlighted = (filterManager || filterStatus) && (!filterManager || slot.car?.carManager === filterManager) && (!filterStatus || slot.car?.status === filterStatus) && slot.car;
 
             const diagonalStyle = !isEditing && slot.car?.plate === '無' 
               ? { backgroundImage: 'linear-gradient(to bottom right, transparent calc(50% - 2px), rgba(220, 53, 69, 0.4) 50%, transparent calc(50% + 2px))' }
@@ -304,17 +258,16 @@ function App() {
             else if (isHighlighted) bgColor = '#e3f2fd';
             else if (slot.car) bgColor = '#fff';
 
+            // 極上仕上場専用のラベル色分け（任意）
+            const labelColor = (currentArea === '極上仕上場' && (slot.label.includes('スタジオ') || slot.label.includes('掃除'))) ? '#6c757d' : '#888';
+
             return (
-              <div 
-                key={slot.id} 
+              <div key={slot.id} 
                 onClick={() => {
                   if (isMoveMode) {
                     if (pooledCar) handlePlacePooledCar(slot.id);
                     else if (!moveSourceId && slot.car) setMoveSourceId(slot.id);
-                    else if (moveSourceId) {
-                       if (moveSourceId === slot.id) setMoveSourceId(null);
-                       else handleMove(slot.id);
-                    }
+                    else if (moveSourceId) (moveSourceId === slot.id) ? setMoveSourceId(null) : handleMove(slot.id);
                   } else if (isSelectionMode) {
                     setSelectedIds(prev => isSelected ? prev.filter(id => id !== slot.id) : [...prev, slot.id]);
                   } else { openForm(slot); }
@@ -329,18 +282,19 @@ function App() {
                   ...diagonalStyle
                 }}
               >
-                <span style={{ fontSize: '10px', color: '#888', marginBottom: '2px', position: 'relative', zIndex: 1 }}>{slot.label}</span>
-                {slot.car?.customerName && <span style={{ fontSize: '10px', color: '#666', lineHeight: '1', position: 'relative', zIndex: 1 }}>{slot.car.customerName} 様</span>}
-                <span style={{ fontWeight: 'bold', fontSize: (currentArea === '裏駐車場' && isSide) ? '13px' : '11px', textAlign: 'center', color: isEditing ? '#dc3545' : '#333', lineHeight: '1.2', position: 'relative', zIndex: 1 }}>
+                <span style={{ fontSize: '10px', color: labelColor, marginBottom: '2px' }}>{slot.label}</span>
+                {slot.car?.customerName && <span style={{ fontSize: '10px', color: '#666', lineHeight: '1' }}>{slot.car.customerName} 様</span>}
+                <span style={{ fontWeight: 'bold', fontSize: (isSide) ? '13px' : '11px', textAlign: 'center', color: isEditing ? '#dc3545' : '#333' }}>
                   {isEditing ? '入力中' : (slot.car?.name || '空')}
                 </span>
-                {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '10px', fontWeight: 'bold', marginTop: '2px', position: 'relative', zIndex: 1 }}>{slot.car.status}</span>}
+                {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '10px', fontWeight: 'bold', marginTop: '2px' }}>{slot.car.status}</span>}
               </div>
             );
           })}
         </div>
       </div>
 
+      {/* 削除・モーダル・スタイル等は安定版を維持（省略せず全て含みます） */}
       {isSelectionMode && selectedIds.length > 0 && (
         <div style={floatingBarStyle}>
           <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択</span>
@@ -359,41 +313,14 @@ function App() {
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ お客様名</span><input type="text" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} style={inputStyle} placeholder="様" /></div>
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 色</span><input type="text" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} style={inputStyle} /></div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 状況</span>
-                  <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} style={inputStyle}>
-                    <option value=""></option>
-                    {STATUS_LIST.map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-                <div style={fieldGroupStyle}>
-                  <span style={labelStyle}>◻︎ プレート</span>
-                  <div style={{ display: 'flex', gap: '20px', padding: '10px 0' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', fontSize: '16px' }}><input type="radio" name="plate" value="有" checked={formData.plate === '有'} onChange={e => setFormData({...formData, plate: e.target.value})} style={{ marginRight: '8px' }} /> 有</label>
-                    <label style={{ display: 'flex', alignItems: 'center', fontSize: '16px' }}><input type="radio" name="plate" value="無" checked={formData.plate === '無'} onChange={e => setFormData({...formData, plate: e.target.value})} style={{ marginRight: '8px' }} /> 無</label>
-                  </div>
-                </div>
+                <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 状況</span><select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} style={inputStyle}><option value=""></option>{STATUS_LIST.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+                <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ プレート</span><div style={{ display: 'flex', gap: '20px', padding: '10px 0' }}><label><input type="radio" checked={formData.plate === '有'} onChange={() => setFormData({...formData, plate: '有'})} /> 有</label><label><input type="radio" checked={formData.plate === '無'} onChange={() => setFormData({...formData, plate: '無'})} /> 無</label></div></div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 車両担当</span>
-                  <select value={formData.carManager} onChange={e => setFormData({...formData, carManager: e.target.value})} style={inputStyle}>
-                    <option value=""></option>
-                    {STAFF_LIST.map(name => <option key={name} value={name}>{name}</option>)}
-                  </select>
-                </div>
-                <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 入庫担当</span>
-                  <select value={formData.entryManager} onChange={e => setFormData({...formData, entryManager: e.target.value})} style={inputStyle}>
-                    <option value=""></option>
-                    {STAFF_LIST.map(name => <option key={name} value={name}>{name}</option>)}
-                  </select>
-                </div>
+                <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 車両担当</span><select value={formData.carManager} onChange={e => setFormData({...formData, carManager: e.target.value})} style={inputStyle}><option value=""></option>{STAFF_LIST.map(n => <option key={n} value={n}>{n}</option>)}</select></div>
+                <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 入庫担当</span><select value={formData.entryManager} onChange={e => setFormData({...formData, entryManager: e.target.value})} style={inputStyle}><option value=""></option>{STAFF_LIST.map(n => <option key={n} value={n}>{n}</option>)}</select></div>
               </div>
-              <div style={fieldGroupStyle}>
-                <span style={labelStyle}>◻︎ 入庫日</span>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input type="text" value={formData.entryDate} readOnly style={{ ...inputStyle, backgroundColor: '#f0f0f0', flex: 1 }} />
-                  <button onClick={() => setFormData({...formData, entryDate: getNowTimestamp()})} style={{ backgroundColor: '#28a745', color: '#fff', border: 'none', padding: '0 12px', borderRadius: '6px' }}>打刻</button>
-                </div>
-              </div>
+              <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 入庫日</span><div style={{ display: 'flex', gap: '8px' }}><input type="text" value={formData.entryDate} readOnly style={{ ...inputStyle, backgroundColor: '#f0f0f0', flex: 1 }} /><button onClick={() => setFormData({...formData, entryDate: getNowTimestamp()})} style={{ backgroundColor: '#28a745', color: '#fff', border: 'none', padding: '0 12px', borderRadius: '6px' }}>打刻</button></div></div>
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 備考</span><textarea rows={2} value={formData.memo} onChange={e => setFormData({...formData, memo: e.target.value})} style={{...inputStyle, height: '60px'}} /></div>
             </div>
             <div style={{ padding: '15px 20px', backgroundColor: '#f8f9fa', borderTop: '1px solid #ddd', display: 'flex', gap: '10px' }}>
@@ -407,6 +334,7 @@ function App() {
   );
 }
 
+// --- スタイル定義 (安定版を完全復元) ---
 const loadingContainerStyle = { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#fff' };
 const logoWrapperStyle = { position: 'relative' as const, width: '180px', height: 'auto', display: 'flex', justifyContent: 'center' };
 const logoBaseStyle = { width: '180px', height: 'auto', display: 'block' };
