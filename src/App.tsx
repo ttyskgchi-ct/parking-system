@@ -116,15 +116,6 @@ function App() {
         return aNum - bNum;
       });
     }
-    if (currentArea === '極上仕上場') {
-      const order = ["東", "西", "予備", "ポート", "スタジオ", "掃除"];
-      return [...base].sort((a, b) => {
-        const aCat = order.findIndex(o => a.label.includes(o));
-        const bCat = order.findIndex(o => b.label.includes(o));
-        if (aCat !== bCat) return aCat - bCat;
-        return a.label.localeCompare(b.label, 'ja', {numeric: true});
-      });
-    }
     return base;
   }, [slots, currentArea]);
 
@@ -182,6 +173,55 @@ function App() {
     setSelectedIds([]); setIsSelectionMode(false); fetchSlots();
   };
 
+  // --- 共通描画コンポーネント ---
+  const renderSlot = (slot: Slot) => {
+    const isEditing = slot.editing_id !== null && slot.editing_id !== myId && !isLockExpired(slot.last_ping);
+    const isMoveSource = moveSourceId === slot.id;
+    const isSelected = selectedIds.includes(slot.id);
+    const isHighlighted = (filterManager || filterStatus) && (!filterManager || slot.car?.carManager === filterManager) && (!filterStatus || slot.car?.status === filterStatus) && slot.car;
+
+    const diagonalStyle = !isEditing && slot.car?.plate === '無' 
+      ? { backgroundImage: 'linear-gradient(to bottom right, transparent calc(50% - 2px), rgba(220, 53, 69, 0.4) 50%, transparent calc(50% + 2px))' }
+      : {};
+
+    let bgColor = '#f0f0f0';
+    if (isEditing) bgColor = '#ffe5e5';
+    else if (isMoveSource) bgColor = '#ffc107';
+    else if (isSelected) bgColor = '#fff3cd';
+    else if (isHighlighted) bgColor = '#e3f2fd';
+    else if (slot.car) bgColor = '#fff';
+
+    return (
+      <div key={slot.id} 
+        onClick={() => {
+          if (isMoveMode) {
+            if (pooledCar) handlePlacePooledCar(slot.id);
+            else if (!moveSourceId && slot.car) setMoveSourceId(slot.id);
+            else if (moveSourceId) (moveSourceId === slot.id) ? setMoveSourceId(null) : handleMove(slot.id);
+          } else if (isSelectionMode) {
+            setSelectedIds(prev => isSelected ? prev.filter(id => id !== slot.id) : [...prev, slot.id]);
+          } else { openForm(slot); }
+        }}
+        style={{
+          minHeight: currentArea === 'タワー' ? '100px' : '85px',
+          borderRadius: '8px', border: '1px solid #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: '4px', position: 'relative',
+          backgroundColor: bgColor,
+          borderColor: isEditing ? '#dc3545' : (isMoveSource ? '#ff9800' : (isSelected ? '#dc3545' : (isHighlighted ? '#007bff' : (slot.car ? '#007bff' : '#ccc')))),
+          borderWidth: (isMoveSource || isSelected || isEditing || isHighlighted) ? '3px' : '1px',
+          opacity: (filterManager || filterStatus) && !isHighlighted ? 0.3 : 1,
+          ...diagonalStyle
+        }}
+      >
+        <span style={{ fontSize: '10px', color: '#888', marginBottom: '2px' }}>{slot.label}</span>
+        {slot.car?.customerName && <span style={{ fontSize: '10px', color: '#666', lineHeight: '1' }}>{slot.car.customerName} 様</span>}
+        <span style={{ fontWeight: 'bold', fontSize: '13px', textAlign: 'center', color: isEditing ? '#dc3545' : '#333' }}>
+          {isEditing ? '入力中' : (slot.car?.name || '空')}
+        </span>
+        {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '10px', fontWeight: 'bold', marginTop: '2px' }}>{slot.car.status}</span>}
+      </div>
+    );
+  };
+
   if (loading) return (
     <div style={loadingContainerStyle}>
       <style>{`
@@ -204,7 +244,7 @@ function App() {
         <button onClick={handleForceUnlockAll} style={forceUnlockButtonStyle}>⚙</button>
       </div>
 
-      {/* エリア切替 */}
+      {/* エリア選択 */}
       <div style={{ display: 'flex', backgroundColor: '#fff', padding: '10px', gap: '8px', overflowX: 'auto', borderBottom: '1px solid #ddd', justifyContent: 'center' }}>
         {AREAS.map(area => (
           <button key={area} onClick={() => { setCurrentArea(area); setSelectedIds([]); setMoveSourceId(null); setPooledCar(null); }} 
@@ -234,72 +274,60 @@ function App() {
         </div>
       </div>
 
-      {/* メインレイアウト */}
+      {/* メイングリッド表示 */}
       <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 180px 10px' }}>
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: currentArea === '裏駐車場' ? '1.8fr 1fr 1fr 1fr 1.8fr' : 
-                               currentArea === 'タワー' ? '1fr 1fr' : 
-                               'repeat(4, 1fr)', 
-          gap: '12px',
-          maxWidth: currentArea === 'タワー' ? '500px' : '950px',
-          margin: '0 auto' 
-        }}>
-          {filteredSlots.map((slot) => {
-            const isEditing = slot.editing_id !== null && slot.editing_id !== myId && !isLockExpired(slot.last_ping);
-            const isMoveSource = moveSourceId === slot.id;
-            const isSelected = selectedIds.includes(slot.id);
-            const isSide = slot.label.includes('西') || slot.label.includes('東');
-            const isHighlighted = (filterManager || filterStatus) && (!filterManager || slot.car?.carManager === filterManager) && (!filterStatus || slot.car?.status === filterStatus) && slot.car;
+        {currentArea === '極上仕上場' ? (
+          /* 極上仕上場専用：セクション分けレイアウト */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+            {[
+              { label: "東エリア (4列表示)", prefix: "東", cols: 4 },
+              { label: "西エリア (2列表示)", prefix: "西", cols: 2 },
+              { label: "ポート (3列表示)", prefix: "ポート", cols: 3 },
+              { label: "スタジオ / 掃除スペース", prefix: ["スタジオ", "掃除スペース"], cols: 2 },
+              { label: "予備", prefix: "予備", cols: 4 }
+            ].map(section => {
+              const sectionSlots = filteredSlots.filter(s => 
+                Array.isArray(section.prefix) 
+                  ? section.prefix.some(p => s.label.includes(p))
+                  : s.label.includes(section.prefix)
+              ).sort((a, b) => a.label.localeCompare(b.label, 'ja', {numeric: true}));
 
-            const diagonalStyle = !isEditing && slot.car?.plate === '無' 
-              ? { backgroundImage: 'linear-gradient(to bottom right, transparent calc(50% - 2px), rgba(220, 53, 69, 0.4) 50%, transparent calc(50% + 2px))' }
-              : {};
+              if (sectionSlots.length === 0) return null;
 
-            let bgColor = '#f0f0f0';
-            if (isEditing) bgColor = '#ffe5e5';
-            else if (isMoveSource) bgColor = '#ffc107';
-            else if (isSelected) bgColor = '#fff3cd';
-            else if (isHighlighted) bgColor = '#e3f2fd'; // 以前の薄い青
-            else if (slot.car) bgColor = '#fff';
-
-            return (
-              <div key={slot.id} 
-                onClick={() => {
-                  if (isMoveMode) {
-                    if (pooledCar) handlePlacePooledCar(slot.id);
-                    else if (!moveSourceId && slot.car) setMoveSourceId(slot.id);
-                    else if (moveSourceId) (moveSourceId === slot.id) ? setMoveSourceId(null) : handleMove(slot.id);
-                  } else if (isSelectionMode) {
-                    setSelectedIds(prev => isSelected ? prev.filter(id => id !== slot.id) : [...prev, slot.id]);
-                  } else { openForm(slot); }
-                }}
-                style={{
-                  minHeight: currentArea === 'タワー' ? '100px' : '85px',
-                  borderRadius: '8px', border: '1px solid #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: '4px', position: 'relative',
-                  backgroundColor: bgColor,
-                  borderColor: isEditing ? '#dc3545' : (isMoveSource ? '#ff9800' : (isSelected ? '#dc3545' : (isHighlighted ? '#007bff' : (slot.car ? '#007bff' : '#ccc')))),
-                  borderWidth: (isMoveSource || isSelected || isEditing || isHighlighted) ? '3px' : '1px',
-                  opacity: (filterManager || filterStatus) && !isHighlighted ? 0.3 : 1,
-                  ...diagonalStyle
-                }}
-              >
-                <span style={{ fontSize: '10px', color: '#888', marginBottom: '2px' }}>{slot.label}</span>
-                {slot.car?.customerName && <span style={{ fontSize: '10px', color: '#666', lineHeight: '1' }}>{slot.car.customerName} 様</span>}
-                <span style={{ fontWeight: 'bold', fontSize: (isSide) ? '13px' : '11px', textAlign: 'center', color: isEditing ? '#dc3545' : '#333' }}>
-                  {isEditing ? '入力中' : (slot.car?.name || '空')}
-                </span>
-                {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '10px', fontWeight: 'bold', marginTop: '2px' }}>{slot.car.status}</span>}
-              </div>
-            );
-          })}
-        </div>
+              return (
+                <div key={section.label}>
+                  <div style={{ borderLeft: '5px solid #007bff', paddingLeft: '10px', marginBottom: '15px', fontWeight: 'bold', fontSize: '16px', color: '#333' }}>
+                    {section.label}
+                  </div>
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: `repeat(${section.cols}, 1fr)`, 
+                    gap: '10px' 
+                  }}>
+                    {sectionSlots.map(slot => renderSlot(slot))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* 裏駐車場・タワー：従来レイアウト */
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: currentArea === '裏駐車場' ? '1.8fr 1fr 1fr 1fr 1.8fr' : '1fr 1fr',
+            gap: '12px',
+            maxWidth: currentArea === 'タワー' ? '500px' : '950px',
+            margin: '0 auto' 
+          }}>
+            {filteredSlots.map(slot => renderSlot(slot))}
+          </div>
+        )}
       </div>
 
-      {/* 選択削除バー */}
+      {/* 削除選択バー */}
       {isSelectionMode && selectedIds.length > 0 && (
         <div style={floatingBarStyle}>
-          <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択</span>
+          <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択中</span>
           <button onClick={() => handleBulkClear()} style={bulkDeleteButtonStyle}>削除実行</button>
         </div>
       )}
@@ -337,7 +365,7 @@ function App() {
   );
 }
 
-// --- スタイル定義 ---
+// --- スタイル定義（変更なし） ---
 const loadingContainerStyle = { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#fff' };
 const logoWrapperStyle = { position: 'relative' as const, width: '180px', height: 'auto', display: 'flex', justifyContent: 'center' };
 const logoBaseStyle = { width: '180px', height: 'auto', display: 'block' };
