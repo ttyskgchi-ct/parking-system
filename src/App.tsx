@@ -104,6 +104,7 @@ function App() {
 
   const resetFilters = () => { setFilterManager(''); setFilterStatus(''); };
 
+  // 極上仕上場以外のエリアのフィルタ用
   const displaySlots = useMemo(() => {
     return slots.filter(s => s.area_name === currentArea);
   }, [slots, currentArea]);
@@ -241,21 +242,18 @@ function App() {
 
       <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 150px 10px' }}>
         {currentArea === '極上仕上場' ? (
+          /* 極上仕上場：確実に区画分けして表示 */
           <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
             {[
               { label: "東エリア (4列)", keyword: "東", cols: 4 },
               { label: "西エリア (2列)", keyword: "西", cols: 2 },
               { label: "ポート", keyword: "ポート", cols: 3 },
-              /* ここを修正：キーワードを配列にして「スタジオ」と「掃除スペース」の両方を拾うようにしました */
-              { label: "スタジオ / 掃除スペース", keyword: ["スタジオ", "掃除スペース"], cols: 2 },
+              { label: "スタジオ", keyword: "スタジオ", cols: 2 },
+              { label: "掃除スペース", keyword: "掃除", cols: 2 },
               { label: "予備", keyword: "予備", cols: 4 }
             ].map(section => {
               const sectionSlots = displaySlots
-                .filter(s => 
-                  Array.isArray(section.keyword) 
-                    ? section.keyword.some(k => s.label.includes(k)) 
-                    : s.label.includes(section.keyword)
-                )
+                .filter(s => s.label.includes(section.keyword))
                 .sort((a, b) => a.label.localeCompare(b.label, 'ja', {numeric: true}));
               
               if (sectionSlots.length === 0) return null;
@@ -270,6 +268,7 @@ function App() {
             })}
           </div>
         ) : (
+          /* 裏・タワー：従来レイアウト */
           <div style={{ display: 'grid', gridTemplateColumns: currentArea === '裏駐車場' ? '1.8fr 1fr 1fr 1fr 1.8fr' : '1fr 1fr', gap: '12px' }}>
             {displaySlots.map(slot => renderSlot(slot))}
           </div>
