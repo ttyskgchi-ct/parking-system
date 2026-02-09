@@ -198,11 +198,13 @@ function App() {
 
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif', margin: 0, padding: 0 }}>
+      {/* ヘッダー */}
       <div style={{ backgroundColor: '#fff', padding: '15px 0', position: 'relative', borderBottom: '1px solid #eee' }}>
         <h1 style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', margin: 0 }}>🚗 拠点別駐車場管理</h1>
         <button onClick={handleForceUnlockAll} style={forceUnlockButtonStyle}>⚙</button>
       </div>
 
+      {/* エリア切替 */}
       <div style={{ display: 'flex', backgroundColor: '#fff', padding: '10px', gap: '8px', overflowX: 'auto', borderBottom: '1px solid #ddd', justifyContent: 'center' }}>
         {AREAS.map(area => (
           <button key={area} onClick={() => { setCurrentArea(area); setSelectedIds([]); setMoveSourceId(null); setPooledCar(null); }} 
@@ -212,13 +214,14 @@ function App() {
         ))}
       </div>
 
+      {/* フィルタ・モード切替 */}
       <div style={{ position: 'sticky', top: 0, backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', zIndex: 1000, padding: '10px' }}>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '600px', margin: '0 auto 12px auto' }}>
           <select value={filterManager} onChange={(e) => setFilterManager(e.target.value)} style={filterSelectStyle}>
             <option value="">担当者で絞り込み</option>
             {STAFF_LIST.map(name => <option key={name} value={name}>{name}</option>)}
           </select>
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={filterSelectStyle}>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={filterStatus === '' ? filterSelectStyle : { ...filterSelectStyle, backgroundColor: '#e3f2fd', borderColor: '#007bff' }}>
             <option value="">状況で絞り込み</option>
             {STATUS_LIST.map(status => <option key={status} value={status}>{status}</option>)}
           </select>
@@ -231,6 +234,7 @@ function App() {
         </div>
       </div>
 
+      {/* メインレイアウト */}
       <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 180px 10px' }}>
         <div style={{ 
           display: 'grid', 
@@ -256,7 +260,7 @@ function App() {
             if (isEditing) bgColor = '#ffe5e5';
             else if (isMoveSource) bgColor = '#ffc107';
             else if (isSelected) bgColor = '#fff3cd';
-            else if (isHighlighted) bgColor = '#e3f2fd';
+            else if (isHighlighted) bgColor = '#e3f2fd'; // 以前の薄い青
             else if (slot.car) bgColor = '#fff';
 
             return (
@@ -292,6 +296,7 @@ function App() {
         </div>
       </div>
 
+      {/* 選択削除バー */}
       {isSelectionMode && selectedIds.length > 0 && (
         <div style={floatingBarStyle}>
           <span style={{ fontWeight: 'bold' }}>{selectedIds.length}台 選択</span>
@@ -299,6 +304,7 @@ function App() {
         </div>
       )}
 
+      {/* 入力モーダル */}
       {isModalOpen && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
@@ -331,6 +337,7 @@ function App() {
   );
 }
 
+// --- スタイル定義 ---
 const loadingContainerStyle = { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#fff' };
 const logoWrapperStyle = { position: 'relative' as const, width: '180px', height: 'auto', display: 'flex', justifyContent: 'center' };
 const logoBaseStyle = { width: '180px', height: 'auto', display: 'block' };
