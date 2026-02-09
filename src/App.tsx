@@ -96,12 +96,6 @@ function App() {
     return `${now.getFullYear()}/${(now.getMonth()+1)}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
   };
 
-  const handleForceUnlockAll = async () => {
-    if (!confirm('全ての「入力中」状態を強制解除しますか？')) return;
-    await supabase.from('parking_slots').update({ editing_id: null, last_ping: null }).not('editing_id', 'is', null);
-    fetchSlots();
-  };
-
   const resetFilters = () => { setFilterManager(''); setFilterStatus(''); };
 
   const displaySlots = useMemo(() => {
