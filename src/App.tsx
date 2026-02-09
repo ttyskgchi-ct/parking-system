@@ -246,6 +246,7 @@ function App() {
               { label: "東エリア (4列)", keyword: "東", cols: 4 },
               { label: "西エリア (2列)", keyword: "西", cols: 2 },
               { label: "ポート", keyword: "ポート", cols: 3 },
+              /* ここを修正：キーワードを配列にして「スタジオ」と「掃除スペース」の両方を拾うようにしました */
               { label: "スタジオ / 掃除スペース", keyword: ["スタジオ", "掃除スペース"], cols: 2 },
               { label: "予備", keyword: "予備", cols: 4 }
             ].map(section => {
