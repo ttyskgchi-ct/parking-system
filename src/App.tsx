@@ -175,7 +175,7 @@ function App() {
     await supabase.from('parking_slots').update({
       car_name: pooledCar.name, customer_name: pooledCar.customerName, color: pooledCar.color, status: pooledCar.status,
       plate: pooledCar.plate, car_manager: pooledCar.carManager,
-      entry_manager: pooledCar.entryManager, entry_date: pooledCar.entryDate, // ← ここを修正しました (entry_date -> entryDate)
+      entry_manager: pooledCar.entryManager, entry_date: pooledCar.entryDate,
       memo: pooledCar.memo, editing_id: null, last_ping: null
     }).eq('id', toId);
     setPooledCar(null);
@@ -215,6 +215,64 @@ function App() {
       car_name: null, customer_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null, editing_id: null, last_ping: null
     }).in('id', selectedIds);
     setSelectedIds([]); setIsSelectionMode(false); fetchSlots();
+  };
+
+  // スロットの描画ロジックを共通化
+  const renderSlot = (slot: Slot) => {
+    const isEditing = slot.editing_id !== null && slot.editing_id !== myId && !isLockExpired(slot.last_ping);
+    const isMoveSource = moveSourceId === slot.id;
+    const isSelected = selectedIds.includes(slot.id);
+    const isSide = slot.label.includes('西') || slot.label.includes('東');
+
+    const isHighlighted = (filterManager || filterStatus) && 
+      (!filterManager || slot.car?.carManager === filterManager) &&
+      (!filterStatus || slot.car?.status === filterStatus) &&
+      slot.car !== null;
+
+    const diagonalStyle = !isEditing && slot.car?.plate === '無' 
+      ? { backgroundImage: 'linear-gradient(to bottom right, transparent calc(50% - 2px), rgba(220, 53, 69, 0.4) 50%, transparent calc(50% + 2px))' }
+      : {};
+
+    let bgColor = '#f0f0f0';
+    if (isEditing) bgColor = '#ffe5e5';
+    else if (isMoveSource) bgColor = '#ffc107';
+    else if (isSelected) bgColor = '#fff3cd';
+    else if (isHighlighted) bgColor = '#e3f2fd';
+    else if (slot.car) bgColor = '#fff';
+
+    return (
+      <div 
+        key={slot.id} 
+        onClick={() => {
+          if (isMoveMode) {
+            if (pooledCar) handlePlacePooledCar(slot.id);
+            else if (!moveSourceId && slot.car) setMoveSourceId(slot.id);
+            else if (moveSourceId) {
+               if (moveSourceId === slot.id) setMoveSourceId(null);
+               else handleMove(slot.id);
+            }
+          } else if (isSelectionMode) {
+            setSelectedIds(prev => isSelected ? prev.filter(id => id !== slot.id) : [...prev, slot.id]);
+          } else { openForm(slot); }
+        }}
+        style={{
+          minHeight: currentArea === 'タワー' ? '100px' : '85px',
+          borderRadius: '8px', border: '1px solid #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: '4px', position: 'relative',
+          backgroundColor: bgColor,
+          borderColor: isEditing ? '#dc3545' : (isMoveSource ? '#ff9800' : (isSelected ? '#dc3545' : (isHighlighted ? '#007bff' : (slot.car ? '#007bff' : '#ccc')))),
+          borderWidth: (isMoveSource || isSelected || isEditing || isHighlighted) ? '3px' : '1px',
+          opacity: (filterManager || filterStatus) && !isHighlighted ? 0.3 : 1,
+          ...diagonalStyle
+        }}
+      >
+        <span style={{ fontSize: '10px', color: '#888', marginBottom: '2px', position: 'relative', zIndex: 1 }}>{slot.label}</span>
+        {slot.car?.customerName && <span style={{ fontSize: '10px', color: '#666', lineHeight: '1', position: 'relative', zIndex: 1 }}>{slot.car.customerName} 様</span>}
+        <span style={{ fontWeight: 'bold', fontSize: (currentArea === '裏駐車場' && isSide) ? '13px' : '11px', textAlign: 'center', color: isEditing ? '#dc3545' : '#333', lineHeight: '1.2', position: 'relative', zIndex: 1 }}>
+          {isEditing ? '入力中' : (slot.car?.name || '空')}
+        </span>
+        {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '10px', fontWeight: 'bold', marginTop: '2px', position: 'relative', zIndex: 1 }}>{slot.car.status}</span>}
+      </div>
+    );
   };
 
   if (loading) return (
@@ -275,70 +333,55 @@ function App() {
       </div>
 
       <div style={{ maxWidth: '950px', margin: '0 auto', padding: '20px 10px 180px 10px' }}>
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: currentArea === '裏駐車場' ? '1.8fr 1fr 1fr 1fr 1.8fr' : currentArea === 'タワー' ? '1fr 1fr' : 'repeat(auto-fill, minmax(85px, 1fr))', 
-          gap: '12px',
-          maxWidth: currentArea === 'タワー' ? '500px' : '950px',
-          margin: '0 auto' 
-        }}>
-          {filteredSlots.map((slot) => {
-            const isEditing = slot.editing_id !== null && slot.editing_id !== myId && !isLockExpired(slot.last_ping);
-            const isMoveSource = moveSourceId === slot.id;
-            const isSelected = selectedIds.includes(slot.id);
-            const isSide = slot.label.includes('西') || slot.label.includes('東');
-
-            const isHighlighted = (filterManager || filterStatus) && 
-              (!filterManager || slot.car?.carManager === filterManager) &&
-              (!filterStatus || slot.car?.status === filterStatus) &&
-              slot.car !== null;
-
-            const diagonalStyle = !isEditing && slot.car?.plate === '無' 
-              ? { backgroundImage: 'linear-gradient(to bottom right, transparent calc(50% - 2px), rgba(220, 53, 69, 0.4) 50%, transparent calc(50% + 2px))' }
-              : {};
-
-            let bgColor = '#f0f0f0';
-            if (isEditing) bgColor = '#ffe5e5';
-            else if (isMoveSource) bgColor = '#ffc107';
-            else if (isSelected) bgColor = '#fff3cd';
-            else if (isHighlighted) bgColor = '#e3f2fd';
-            else if (slot.car) bgColor = '#fff';
-
-            return (
-              <div 
-                key={slot.id} 
-                onClick={() => {
-                  if (isMoveMode) {
-                    if (pooledCar) handlePlacePooledCar(slot.id);
-                    else if (!moveSourceId && slot.car) setMoveSourceId(slot.id);
-                    else if (moveSourceId) {
-                       if (moveSourceId === slot.id) setMoveSourceId(null);
-                       else handleMove(slot.id);
-                    }
-                  } else if (isSelectionMode) {
-                    setSelectedIds(prev => isSelected ? prev.filter(id => id !== slot.id) : [...prev, slot.id]);
-                  } else { openForm(slot); }
-                }}
-                style={{
-                  minHeight: currentArea === 'タワー' ? '100px' : '85px',
-                  borderRadius: '8px', border: '1px solid #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: '4px', position: 'relative',
-                  backgroundColor: bgColor,
-                  borderColor: isEditing ? '#dc3545' : (isMoveSource ? '#ff9800' : (isSelected ? '#dc3545' : (isHighlighted ? '#007bff' : (slot.car ? '#007bff' : '#ccc')))),
-                  borderWidth: (isMoveSource || isSelected || isEditing || isHighlighted) ? '3px' : '1px',
-                  opacity: (filterManager || filterStatus) && !isHighlighted ? 0.3 : 1,
-                  ...diagonalStyle
-                }}
-              >
-                <span style={{ fontSize: '10px', color: '#888', marginBottom: '2px', position: 'relative', zIndex: 1 }}>{slot.label}</span>
-                {slot.car?.customerName && <span style={{ fontSize: '10px', color: '#666', lineHeight: '1', position: 'relative', zIndex: 1 }}>{slot.car.customerName} 様</span>}
-                <span style={{ fontWeight: 'bold', fontSize: (currentArea === '裏駐車場' && isSide) ? '13px' : '11px', textAlign: 'center', color: isEditing ? '#dc3545' : '#333', lineHeight: '1.2', position: 'relative', zIndex: 1 }}>
-                  {isEditing ? '入力中' : (slot.car?.name || '空')}
-                </span>
-                {!isEditing && slot.car && <span style={{ color: '#007bff', fontSize: '10px', fontWeight: 'bold', marginTop: '2px', position: 'relative', zIndex: 1 }}>{slot.car.status}</span>}
-              </div>
-            );
-          })}
-        </div>
+        {currentArea === '極上仕上場' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+            {[
+              { label: "東エリア", keyword: "東", cols: 4 },
+              { label: "西エリア", keyword: "西", cols: 2 },
+              { label: "ポート", keyword: "ポート", cols: 3 },
+              { label: "スタジオ / 掃除スペース", keyword: ["スタジオ", "掃除スペース"], cols: 2 },
+              { label: "予備", keyword: "予備", cols: 4 }
+            ].map(section => {
+              const sectionSlots = filteredSlots.filter(s => 
+                Array.isArray(section.keyword) 
+                  ? section.keyword.some(k => s.label.includes(k))
+                  : s.label.includes(section.keyword)
+              ).sort((a, b) => a.label.localeCompare(b.label, 'ja', {numeric: true}));
+              
+              if (sectionSlots.length === 0) return null;
+              
+              return (
+                <div key={section.label}>
+                  <h3 style={{ fontSize: '15px', marginBottom: '10px', paddingLeft: '8px', borderLeft: '4px solid #007bff', fontWeight: 'bold' }}>{section.label}</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${section.cols}, 1fr)`, gap: '12px' }}>
+                    {sectionSlots.map(slot => renderSlot(slot))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: currentArea === '裏駐車場' ? '1.8fr 1fr 1fr 1fr 1.8fr' : currentArea === 'タワー' ? '1fr 1fr' : 'repeat(auto-fill, minmax(85px, 1fr))', 
+            gap: '12px',
+            maxWidth: currentArea === 'タワー' ? '500px' : '950px',
+            margin: '0 auto' 
+          }}>
+            {currentArea === '裏駐車場' ? (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1.8fr', gap: '12px', gridColumn: '1 / -1' }}>
+                  {filteredSlots.filter(s => !s.label.includes('入口')).map(slot => renderSlot(slot))}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', width: '40%', marginTop: '10px' }}>
+                  {filteredSlots.filter(s => s.label.includes('入口')).map(slot => renderSlot(slot))}
+                </div>
+              </>
+            ) : (
+              filteredSlots.map(slot => renderSlot(slot))
+            )}
+          </div>
+        )}
       </div>
 
       {isSelectionMode && selectedIds.length > 0 && (
