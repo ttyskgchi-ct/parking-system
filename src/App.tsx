@@ -96,6 +96,12 @@ function App() {
     return `${now.getFullYear()}/${(now.getMonth()+1)}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
   };
 
+  const handleForceUnlockAll = async () => {
+    if (!confirm('全ての「入力中」状態を強制解除しますか？')) return;
+    await supabase.from('parking_slots').update({ editing_id: null, last_ping: null }).not('editing_id', 'is', null);
+    fetchSlots();
+  };
+
   const resetFilters = () => { setFilterManager(''); setFilterStatus(''); };
 
   const displaySlots = useMemo(() => {
@@ -203,13 +209,7 @@ function App() {
     );
   };
 
-  // --- ロード画面の復元 ---
-  if (loading) return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '20px' }}>
-      <div style={{ fontSize: '60px', animation: 'bounce 2s infinite' }}>🚗</div>
-      <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#007bff' }}>データを読み込み中...</div>
-    </div>
-  );
+  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>読み込み中...</div>;
 
   return (
     <div style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', width: '100%', fontFamily: 'sans-serif' }}>
@@ -243,8 +243,8 @@ function App() {
         {currentArea === '極上仕上場' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
             {[
-              { label: "東エリア", keyword: "東", cols: 4 },
-              { label: "西エリア", keyword: "西", cols: 2 },
+              { label: "東エリア (4列)", keyword: "東", cols: 4 },
+              { label: "西エリア (2列)", keyword: "西", cols: 2 },
               { label: "ポート", keyword: "ポート", cols: 3 },
               { label: "スタジオ / 掃除スペース", keyword: ["スタジオ", "掃除スペース"], cols: 2 },
               { label: "予備", keyword: "予備", cols: 4 }
@@ -268,19 +268,8 @@ function App() {
               );
             })}
           </div>
-        ) : currentArea === '裏駐車場' ? (
-          /* 裏駐車場の「完成版レイアウト」を完全復旧 */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1.8fr', gap: '12px' }}>
-              {displaySlots.filter(s => !s.label.includes('入口')).map(slot => renderSlot(slot))}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', width: '40%' }}>
-              {displaySlots.filter(s => s.label.includes('入口')).map(slot => renderSlot(slot))}
-            </div>
-          </div>
         ) : (
-          /* タワーの「完成版レイアウト」を完全復旧 (2列) */
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: currentArea === '裏駐車場' ? '1.8fr 1fr 1fr 1fr 1.8fr' : '1fr 1fr', gap: '12px' }}>
             {displaySlots.map(slot => renderSlot(slot))}
           </div>
         )}
