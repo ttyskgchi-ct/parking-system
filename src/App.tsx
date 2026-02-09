@@ -2,13 +2,24 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from './supabaseClient'
 
 interface CarDetails {
-  name: string; customerName: string; color: string; status: string; plate: string;
-  carManager: string; entryManager: string; entryDate: string; memo: string;
+  name: string;
+  customerName: string;
+  color: string;
+  status: string;
+  plate: string;
+  carManager: string;
+  entryManager: string;
+  entryDate: string;
+  memo: string;
 }
 
 interface Slot {
-  id: number; label: string; area_name: string; car: CarDetails | null;
-  editing_id: string | null; last_ping: string | null;
+  id: number;
+  label: string;
+  area_name: string;
+  car: CarDetails | null;
+  editing_id: string | null;
+  last_ping: string | null;
 }
 
 const AREAS = ["裏駐車場", "タワー", "極上仕上場"];
@@ -53,22 +64,24 @@ function App() {
   const fetchSlots = useCallback(async () => {
     const { data, error } = await supabase.from('parking_slots').select('*').order('id', { ascending: true });
     if (!error && data) {
-      const formatted: Slot[] = data.map(d => {
-        let displayLabel = d.label;
-        if (d.area_name === '裏駐車場' && d.label.startsWith('東-')) {
-          const num = parseInt(d.label.replace('東-', ''));
-          if (num >= 1 && num <= 10) displayLabel = `東-${num + 15}`;
-        }
-        return {
-          id: d.id, label: displayLabel, area_name: d.area_name || '裏駐車場',
-          editing_id: d.editing_id, last_ping: d.last_ping,
-          car: d.car_name ? {
-            name: d.car_name, customerName: d.customer_name || '', color: d.color, status: d.status || '',
-            plate: d.plate || '有', carManager: d.car_manager || '', entryManager: d.entry_manager || '', 
-            entryDate: d.entry_date, memo: d.memo
-          } : null
-        };
-      });
+      const formatted: Slot[] = data.map(d => ({
+        id: d.id,
+        label: d.label,
+        area_name: d.area_name || '裏駐車場',
+        editing_id: d.editing_id,
+        last_ping: d.last_ping,
+        car: d.car_name ? {
+          name: d.car_name,
+          customerName: d.customer_name || '',
+          color: d.color,
+          status: d.status || '',
+          plate: d.plate || '有',
+          carManager: d.car_manager || '',
+          entryManager: d.entry_manager || '',
+          entryDate: d.entry_date,
+          memo: d.memo
+        } : null
+      }));
       setSlots(formatted);
       setLoading(false);
     }
@@ -76,7 +89,9 @@ function App() {
 
   useEffect(() => {
     fetchSlots();
-    const channel = supabase.channel('schema-db-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'parking_slots' }, () => fetchSlots()).subscribe();
+    const channel = supabase.channel('schema-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'parking_slots' }, () => fetchSlots())
+      .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [fetchSlots]);
 
@@ -98,9 +113,17 @@ function App() {
     const src = slots.find(s => s.id === moveSourceId);
     if (!src || !src.car) return;
     await supabase.from('parking_slots').update({
-      car_name: src.car.name, customer_name: src.car.customerName, color: src.car.color, status: src.car.status,
-      plate: src.car.plate, car_manager: src.car.carManager, entry_manager: src.car.entryManager, 
-      entry_date: src.car.entryDate, memo: src.car.memo, editing_id: null, last_ping: null
+      car_name: src.car.name,
+      customer_name: src.car.customerName,
+      color: src.car.color,
+      status: src.car.status,
+      plate: src.car.plate,
+      car_manager: src.car.carManager,
+      entry_manager: src.car.entryManager,
+      entry_date: src.car.entryDate,
+      memo: src.car.memo,
+      editing_id: null,
+      last_ping: null
     }).eq('id', toId);
     await supabase.from('parking_slots').update({ car_name: null, customer_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null, editing_id: null, last_ping: null }).eq('id', moveSourceId);
     setMoveSourceId(null); fetchSlots();
@@ -110,22 +133,36 @@ function App() {
     const isLocked = slot.editing_id && !isLockExpired(slot.last_ping);
     if (isLocked && slot.editing_id !== myId) return;
     await supabase.from('parking_slots').update({ editing_id: myId, last_ping: new Date().toISOString() }).eq('id', slot.id);
-    setTargetSlotId(slot.id); setFormData(slot.car || initialFormData); setIsModalOpen(true);
+    setTargetSlotId(slot.id);
+    setFormData(slot.car || initialFormData);
+    setIsModalOpen(true);
   };
 
   const closeModal = async () => {
     if (targetSlotId) await supabase.from('parking_slots').update({ editing_id: null, last_ping: null }).eq('id', targetSlotId);
-    setIsModalOpen(false); setTargetSlotId(null); fetchSlots();
+    setIsModalOpen(false);
+    setTargetSlotId(null);
+    fetchSlots();
   };
 
   const handleEntry = async () => {
     if (!targetSlotId) return;
     await supabase.from('parking_slots').update({
-      car_name: formData.name, customer_name: formData.customerName, color: formData.color, status: formData.status,
-      plate: formData.plate, car_manager: formData.carManager, entry_manager: formData.entryManager, 
-      entry_date: formData.entryDate, memo: formData.memo, editing_id: null, last_ping: null
+      car_name: formData.name,
+      customer_name: formData.customerName,
+      color: formData.color,
+      status: formData.status,
+      plate: formData.plate,
+      car_manager: formData.carManager,
+      entry_manager: formData.entryManager,
+      entry_date: formData.entryDate,
+      memo: formData.memo,
+      editing_id: null,
+      last_ping: null
     }).eq('id', targetSlotId);
-    setIsModalOpen(false); setTargetSlotId(null); fetchSlots();
+    setIsModalOpen(false);
+    setTargetSlotId(null);
+    fetchSlots();
   };
 
   const renderSlot = (slot: Slot) => {
@@ -149,7 +186,9 @@ function App() {
              else if (moveSourceId) (moveSourceId === slot.id) ? setMoveSourceId(null) : handleMove(slot.id);
           } else if (isSelectionMode) {
             setSelectedIds(prev => isSelected ? prev.filter(id => id !== slot.id) : [...prev, slot.id]);
-          } else { openForm(slot); }
+          } else {
+            openForm(slot);
+          }
         }}
         style={{
           minHeight: '80px', borderRadius: '4px', border: '1px solid #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: '4px', position: 'relative',
@@ -203,13 +242,14 @@ function App() {
         {currentArea === '極上仕上場' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
             {[
-              { label: "東エリア", keyword: "東", cols: 4 },
-              { label: "西エリア", keyword: "西", cols: 2 },
-              { label: "ポート", keyword: "ポート", cols: 3 },
-              { label: "スタジオ / 掃除スペース", keyword: ["スタジオ", "掃除スペース"], cols: 2 },
-              { label: "予備", keyword: "予備", cols: 4 }
+              { label: "東エリア(4列表示)", keyword: "東", cols: 4 },
+              { label: "西エリア(2列表示)", keyword: "西", cols: 2 },
+              { label: "ポート(3列表示)", keyword: "ポート", cols: 3 },
+              { label: "掃除スペース(2列表示)", keyword: "掃除スペース", cols: 2 },
+              { label: "スタジオ(2列表示)", keyword: "スタジオ", cols: 2 },
+              { label: "予備(4列表示)", keyword: "予備", cols: 4 }
             ].map(section => {
-              const sectionSlots = displaySlots.filter(s => Array.isArray(section.keyword) ? section.keyword.some(k => s.label.includes(k)) : s.label.includes(section.keyword)).sort((a, b) => a.label.localeCompare(b.label, 'ja', {numeric: true}));
+              const sectionSlots = displaySlots.filter(s => s.label.includes(section.keyword)).sort((a, b) => a.label.localeCompare(b.label, 'ja', {numeric: true}));
               if (sectionSlots.length === 0) return null;
               return (
                 <div key={section.label}>
