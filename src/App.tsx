@@ -240,26 +240,8 @@ function App() {
 
       <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
         {currentArea === '極上仕上場' ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-            {[
-              { label: "東エリア(4列表示)", keyword: "東", cols: 4 },
-              { label: "西エリア(2列表示)", keyword: "西", cols: 2 },
-              { label: "ポート(3列表示)", keyword: "ポート", cols: 3 },
-              { label: "掃除スペース(2列表示)", keyword: "掃除スペース", cols: 2 },
-              { label: "スタジオ(2列表示)", keyword: "スタジオ", cols: 2 },
-              { label: "予備(4列表示)", keyword: "予備", cols: 4 }
-            ].map(section => {
-              const sectionSlots = displaySlots.filter(s => s.label.includes(section.keyword)).sort((a, b) => a.label.localeCompare(b.label, 'ja', {numeric: true}));
-              if (sectionSlots.length === 0) return null;
-              return (
-                <div key={section.label}>
-                  <h3 style={{ fontSize: '14px', marginBottom: '8px', borderLeft: '3px solid #333', paddingLeft: '8px' }}>{section.label}</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${section.cols}, 1fr)`, gap: '8px' }}>
-                    {sectionSlots.map(slot => renderSlot(slot))}
-                  </div>
-                </div>
-              );
-            })}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            {displaySlots.map(slot => renderSlot(slot))}
           </div>
         ) : currentArea === '裏駐車場' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
