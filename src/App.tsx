@@ -393,10 +393,10 @@ function App() {
       {isModalOpen && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
-            <div style={{ padding: '12px 20px', borderBottom: '2px solid #007bff', backgroundColor: '#fff' }}>
-              <h2 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0 }}>車両情報:[{slots.find(s => s.id === targetSlotId)?.label}]</h2>
+            <div style={{ padding: '8px 20px', borderBottom: '2px solid #007bff', backgroundColor: '#fff' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 'bold', margin: 0 }}>車両情報:[{slots.find(s => s.id === targetSlotId)?.label}]</h2>
             </div>
-            <div style={{ padding: '15px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ padding: '10px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 車名</span><input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={inputStyle} /></div>
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ お客様名</span><input type="text" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} style={inputStyle} placeholder="様" /></div>
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 色</span><input type="text" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} style={inputStyle} /></div>
@@ -409,7 +409,7 @@ function App() {
                 </div>
                 <div style={fieldGroupStyle}>
                   <span style={labelStyle}>◻︎ プレート</span>
-                  <div style={{ display: 'flex', gap: '20px', padding: '6px 0' }}>
+                  <div style={{ display: 'flex', gap: '20px', padding: '4px 0' }}>
                     <label style={{ display: 'flex', alignItems: 'center', fontSize: '15px' }}><input type="radio" name="plate" value="有" checked={formData.plate === '有'} onChange={e => setFormData({...formData, plate: e.target.value})} style={{ marginRight: '6px' }} /> 有</label>
                     <label style={{ display: 'flex', alignItems: 'center', fontSize: '15px' }}><input type="radio" name="plate" value="無" checked={formData.plate === '無'} onChange={e => setFormData({...formData, plate: e.target.value})} style={{ marginRight: '6px' }} /> 無</label>
                   </div>
@@ -433,21 +433,21 @@ function App() {
                 <span style={labelStyle}>◻︎ 入庫日</span>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input type="text" value={formData.entryDate} readOnly style={{ ...inputStyle, backgroundColor: '#f0f0f0', flex: 1 }} />
-                  <button onClick={() => setFormData({...formData, entryDate: getNowTimestamp()})} style={{ backgroundColor: '#28a745', color: '#fff', border: 'none', padding: '0 12px', borderRadius: '6px' }}>打刻</button>
+                  <button onClick={() => setFormData({...formData, entryDate: getNowTimestamp()})} style={{ backgroundColor: '#28a745', color: '#fff', border: 'none', padding: '0 10px', borderRadius: '6px', fontSize: '14px' }}>打刻</button>
                 </div>
               </div>
-              <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 備考</span><textarea rows={2} value={formData.memo} onChange={e => setFormData({...formData, memo: e.target.value})} style={{...inputStyle, height: '50px'}} /></div>
+              <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 備考</span><textarea rows={2} value={formData.memo} onChange={e => setFormData({...formData, memo: e.target.value})} style={{...inputStyle, height: '40px'}} /></div>
             </div>
             <div style={{ 
-              padding: '15px 20px', 
+              padding: '12px 20px', 
               backgroundColor: '#f8f9fa', 
               borderTop: '1px solid #ddd', 
               display: 'flex', 
               gap: '10px', 
-              paddingBottom: 'calc(40px + env(safe-area-inset-bottom))' // さらに下部余白を強化
+              paddingBottom: 'calc(45px + env(safe-area-inset-bottom))' 
             }}>
-              <button onClick={handleEntry} style={{ flex: 2, padding: '12px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '17px' }}>保存する</button>
-              <button onClick={closeModal} style={{ flex: 1, padding: '12px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px' }}>閉じる</button>
+              <button onClick={handleEntry} style={{ flex: 2, padding: '10px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '16px' }}>保存する</button>
+              <button onClick={closeModal} style={{ flex: 1, padding: '10px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px' }}>閉じる</button>
             </div>
           </div>
         </div>
@@ -478,7 +478,7 @@ const modalOverlayStyle = {
   alignItems: 'center', 
   justifyContent: 'center', 
   zIndex: 3000, 
-  padding: '15px', // 全体マージンを少し増やす
+  padding: '10px', 
   boxSizing: 'border-box' as const
 };
 
@@ -487,23 +487,27 @@ const modalContentStyle = {
   width: '100%', 
   maxWidth: '450px', 
   borderRadius: '15px', 
-  maxHeight: '85vh', // 高さを85%に抑え、上下に余裕を持たせる
+  maxHeight: '92vh', // スマホでより多くの情報を一度に見せるため少し拡大
   display: 'flex', 
   flexDirection: 'column' as const, 
   overflow: 'hidden',
   position: 'relative' as const,
-  margin: 'auto' // 上下左右中央を確実に
+  margin: 'auto'
 };
 
-const fieldGroupStyle = { display: 'flex', flexDirection: 'column' as const, gap: '2px' }; // 隙間を詰める
+const fieldGroupStyle = { display: 'flex', flexDirection: 'column' as const, gap: '2px' };
 const labelStyle = { fontSize: '12px', fontWeight: 'bold' as const, color: '#444' };
+
+// --- 重要: fontSizeを16px以上にすることでiOSの自動ズームを防ぐ ---
 const inputStyle = { 
   width: '100%', 
-  padding: '8px', // 入力欄をスリムに
+  padding: '6px 8px', 
   borderRadius: '6px', 
   border: '1px solid #ccc', 
-  fontSize: '15px', 
-  boxSizing: 'border-box' as const 
+  fontSize: '16px', 
+  boxSizing: 'border-box' as const,
+  backgroundColor: '#fff',
+  appearance: 'none' as const // iOSのデフォルトスタイルをリセット
 };
 
 export default App;
