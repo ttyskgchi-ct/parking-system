@@ -200,11 +200,19 @@ function App() {
 
   const handleEntry = async () => {
     if (!targetSlotId) return;
+    // --- 修正箇所: データベース列名に対応するformDataのプロパティを修正 ---
     await supabase.from('parking_slots').update({
-      car_name: formData.name, customer_name: formData.customerName, color: formData.color, status: formData.status,
-      plate: formData.plate, car_manager: formData.car_manager,
-      entry_manager: formData.entry_manager, entry_date: formData.entry_date, memo: formData.memo,
-      editing_id: null, last_ping: null
+      car_name: formData.name, 
+      customer_name: formData.customerName, 
+      color: formData.color, 
+      status: formData.status,
+      plate: formData.plate, 
+      car_manager: formData.carManager,
+      entry_manager: formData.entryManager, 
+      entry_date: formData.entryDate, 
+      memo: formData.memo,
+      editing_id: null, 
+      last_ping: null
     }).eq('id', targetSlotId);
     setIsModalOpen(false); setTargetSlotId(null); fetchSlots();
   };
@@ -460,7 +468,6 @@ const forceUnlockButtonStyle = { position: 'absolute' as const, right: '15px', t
 const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #dc3545' };
 const bulkDeleteButtonStyle = { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold' };
 
-// --- 修正箇所：モーダルのオーバーレイとコンテンツのスタイル ---
 const modalOverlayStyle = { 
   position: 'fixed' as const, 
   top: 0, 
@@ -469,8 +476,8 @@ const modalOverlayStyle = {
   height: '100%', 
   backgroundColor: 'rgba(0,0,0,0.7)', 
   display: 'flex', 
-  alignItems: 'center', // 垂直中央
-  justifyContent: 'center', // 水平中央
+  alignItems: 'center', 
+  justifyContent: 'center', 
   zIndex: 3000, 
   padding: '10px',
   boxSizing: 'border-box' as const
@@ -480,13 +487,13 @@ const modalContentStyle = {
   width: '100%', 
   maxWidth: '450px', 
   borderRadius: '15px', 
-  maxHeight: '90vh', // Safariのメニューバーを考慮して少し短めに
+  maxHeight: '90vh', 
   display: 'flex', 
   flexDirection: 'column' as const, 
   overflow: 'hidden',
   position: 'relative' as const,
-  margin: '0 auto', // 左右中央を保証
-  bottom: '20px' // ボタンが隠れないように全体を少し上にシフト
+  margin: '0 auto',
+  bottom: '20px'
 };
 
 const fieldGroupStyle = { display: 'flex', flexDirection: 'column' as const, gap: '4px' };
