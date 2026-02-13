@@ -202,8 +202,8 @@ function App() {
     if (!targetSlotId) return;
     await supabase.from('parking_slots').update({
       car_name: formData.name, customer_name: formData.customerName, color: formData.color, status: formData.status,
-      plate: formData.plate, car_manager: formData.carManager,
-      entry_manager: formData.entryManager, entry_date: formData.entryDate, memo: formData.memo,
+      plate: formData.plate, car_manager: formData.car_manager,
+      entry_manager: formData.entry_manager, entry_date: formData.entry_date, memo: formData.memo,
       editing_id: null, last_ping: null
     }).eq('id', targetSlotId);
     setIsModalOpen(false); setTargetSlotId(null); fetchSlots();
@@ -217,7 +217,6 @@ function App() {
     setSelectedIds([]); setIsSelectionMode(false); fetchSlots();
   };
 
-  // スロットの描画ロジックを共通化
   const renderSlot = (slot: Slot) => {
     const isEditing = slot.editing_id !== null && slot.editing_id !== myId && !isLockExpired(slot.last_ping);
     const isMoveSource = moveSourceId === slot.id;
@@ -439,7 +438,7 @@ function App() {
               </div>
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 備考</span><textarea rows={2} value={formData.memo} onChange={e => setFormData({...formData, memo: e.target.value})} style={{...inputStyle, height: '60px'}} /></div>
             </div>
-            <div style={{ padding: '15px 20px', backgroundColor: '#f8f9fa', borderTop: '1px solid #ddd', display: 'flex', gap: '10px' }}>
+            <div style={{ padding: '15px 20px', backgroundColor: '#f8f9fa', borderTop: '1px solid #ddd', display: 'flex', gap: '10px', paddingBottom: 'calc(15px + env(safe-area-inset-bottom))' }}>
               <button onClick={handleEntry} style={{ flex: 2, padding: '14px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '18px' }}>保存する</button>
               <button onClick={closeModal} style={{ flex: 1, padding: '14px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px' }}>閉じる</button>
             </div>
@@ -460,8 +459,36 @@ const navButtonStyle = { flex: 1, padding: '12px 0', border: '1px solid #ddd', b
 const forceUnlockButtonStyle = { position: 'absolute' as const, right: '15px', top: '50%', transform: 'translateY(-50%)', border: 'none', backgroundColor: 'transparent', color: '#ddd', fontSize: '18px' };
 const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #dc3545' };
 const bulkDeleteButtonStyle = { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold' };
-const modalOverlayStyle = { position: 'fixed' as const, top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '10px' };
-const modalContentStyle = { backgroundColor: '#fff', width: '100%', maxWidth: '450px', borderRadius: '15px', maxHeight: '95vh', display: 'flex', flexDirection: 'column' as const, overflow: 'hidden' };
+
+// --- 修正箇所：モーダルのオーバーレイとコンテンツのスタイル ---
+const modalOverlayStyle = { 
+  position: 'fixed' as const, 
+  top: 0, 
+  left: 0, 
+  width: '100%', 
+  height: '100%', 
+  backgroundColor: 'rgba(0,0,0,0.7)', 
+  display: 'flex', 
+  alignItems: 'center', // 垂直中央
+  justifyContent: 'center', // 水平中央
+  zIndex: 3000, 
+  padding: '10px',
+  boxSizing: 'border-box' as const
+};
+const modalContentStyle = { 
+  backgroundColor: '#fff', 
+  width: '100%', 
+  maxWidth: '450px', 
+  borderRadius: '15px', 
+  maxHeight: '90vh', // Safariのメニューバーを考慮して少し短めに
+  display: 'flex', 
+  flexDirection: 'column' as const, 
+  overflow: 'hidden',
+  position: 'relative' as const,
+  margin: '0 auto', // 左右中央を保証
+  bottom: '20px' // ボタンが隠れないように全体を少し上にシフト
+};
+
 const fieldGroupStyle = { display: 'flex', flexDirection: 'column' as const, gap: '4px' };
 const labelStyle = { fontSize: '13px', fontWeight: 'bold' as const, color: '#444' };
 const inputStyle = { width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '16px', boxSizing: 'border-box' as const };
