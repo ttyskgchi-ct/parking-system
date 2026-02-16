@@ -154,31 +154,45 @@ function App() {
     return base;
   }, [slots, currentArea]);
 
+  // --- 移動・入れ替えロジック完全復旧 ---
   const handleMove = async (toId: number) => {
     const sourceSlot = slots.find(s => s.id === moveSourceId);
+    const targetSlot = slots.find(s => s.id === toId);
     if (!sourceSlot || !sourceSlot.car) return;
+
+    // もし移動先に車があればストック
+    if (targetSlot?.car) {
+      setPooledCar(targetSlot.car);
+    }
+
     await supabase.from('parking_slots').update({
       car_name: sourceSlot.car.name, customer_name: sourceSlot.car.customerName, color: sourceSlot.car.color, status: sourceSlot.car.status,
       plate: sourceSlot.car.plate, car_manager: sourceSlot.car.carManager,
       entry_manager: sourceSlot.car.entryManager, entry_date: sourceSlot.car.entryDate,
       memo: sourceSlot.car.memo, editing_id: null, last_ping: null
     }).eq('id', toId);
+
     await supabase.from('parking_slots').update({
       car_name: null, customer_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null, editing_id: null, last_ping: null
     }).eq('id', moveSourceId);
+
     setMoveSourceId(null);
     fetchSlots();
   };
 
   const handlePlacePooledCar = async (toId: number) => {
     if (!pooledCar) return;
+    const targetSlot = slots.find(s => s.id === toId);
+    const nextStock = targetSlot?.car ? targetSlot.car : null;
+
     await supabase.from('parking_slots').update({
       car_name: pooledCar.name, customer_name: pooledCar.customerName, color: pooledCar.color, status: pooledCar.status,
       plate: pooledCar.plate, car_manager: pooledCar.carManager,
       entry_manager: pooledCar.entryManager, entry_date: pooledCar.entryDate,
       memo: pooledCar.memo, editing_id: null, last_ping: null
     }).eq('id', toId);
-    setPooledCar(null);
+
+    setPooledCar(nextStock);
     fetchSlots();
   };
 
@@ -390,6 +404,17 @@ function App() {
         </div>
       )}
 
+      {/* --- ストック表示（以前のデザインを完全再現） --- */}
+      {isMoveMode && pooledCar && (
+        <div style={floatingBarStyle}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '10px', color: '#666' }}>ストック中:</span>
+            <span style={{ fontWeight: 'bold', color: '#007bff' }}>{pooledCar.name}</span>
+          </div>
+          <button onClick={() => setPooledCar(null)} style={{ ...bulkDeleteButtonStyle, backgroundColor: '#666' }}>解除</button>
+        </div>
+      )}
+
       {isModalOpen && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
@@ -464,7 +489,7 @@ const filterSelectStyle = { flex: 1, padding: '10px', borderRadius: '8px', borde
 const resetButtonStyle = { padding: '0 15px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px' };
 const navButtonStyle = { flex: 1, padding: '12px 0', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '13px' };
 const forceUnlockButtonStyle = { position: 'absolute' as const, right: '15px', top: '50%', transform: 'translateY(-50%)', border: 'none', backgroundColor: 'transparent', color: '#ddd', fontSize: '18px' };
-const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #dc3545' };
+const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #007bff' };
 const bulkDeleteButtonStyle = { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold' };
 
 const modalOverlayStyle = { 
@@ -487,7 +512,7 @@ const modalContentStyle = {
   width: '100%', 
   maxWidth: '450px', 
   borderRadius: '15px', 
-  maxHeight: '92vh', // スマホでより多くの情報を一度に見せるため少し拡大
+  maxHeight: '92vh', 
   display: 'flex', 
   flexDirection: 'column' as const, 
   overflow: 'hidden',
@@ -497,8 +522,6 @@ const modalContentStyle = {
 
 const fieldGroupStyle = { display: 'flex', flexDirection: 'column' as const, gap: '2px' };
 const labelStyle = { fontSize: '12px', fontWeight: 'bold' as const, color: '#444' };
-
-// --- 重要: fontSizeを16px以上にすることでiOSの自動ズームを防ぐ ---
 const inputStyle = { 
   width: '100%', 
   padding: '6px 8px', 
@@ -507,7 +530,7 @@ const inputStyle = {
   fontSize: '16px', 
   boxSizing: 'border-box' as const,
   backgroundColor: '#fff',
-  appearance: 'none' as const // iOSのデフォルトスタイルをリセット
+  appearance: 'none' as const 
 };
 
 export default App;
