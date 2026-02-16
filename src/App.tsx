@@ -402,17 +402,14 @@ function App() {
         </div>
       )}
 
-      {/* --- ストック表示（デザイン復元・修正版） --- */}
+      {/* --- ストック表示（修正：削除バーのデザインをトレース） --- */}
       {isMoveMode && pooledCar && (
         <div style={stockBarStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={swapIconStyle}>🔄</div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '10px', color: '#856404', fontWeight: 'bold' }}>車両を保持中（入れ替え待機）</span>
-              <span style={{ fontWeight: 'bold', color: '#333', fontSize: '14px' }}>{pooledCar.name}</span>
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '10px', color: '#666' }}>ストック中:</span>
+            <span style={{ fontWeight: 'bold', color: '#ff9800' }}>{pooledCar.name}</span>
           </div>
-          <button onClick={() => setPooledCar(null)} style={stockCancelButtonStyle}>中止</button>
+          <button onClick={() => setPooledCar(null)} style={stockCancelButtonStyle}>解除</button>
         </div>
       )}
 
@@ -501,36 +498,25 @@ const stockBarStyle = {
   transform: 'translateX(-50%)',
   width: '92%',
   maxWidth: '400px',
-  backgroundColor: '#fff3cd',
-  padding: '12px 18px',
+  backgroundColor: '#fff',
+  padding: '15px',
   borderRadius: '15px',
-  boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
+  boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
   zIndex: 2500,
-  border: '2px solid #ffeeba'
-};
-
-const swapIconStyle = {
-  fontSize: '20px',
-  backgroundColor: '#ffeeba',
-  width: '40px',
-  height: '40px',
-  borderRadius: '50%',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center'
+  border: '2px solid #ff9800' // オレンジの枠線
 };
 
 const stockCancelButtonStyle = {
-  backgroundColor: '#856404',
+  backgroundColor: '#666',
   color: '#fff',
   border: 'none',
-  padding: '8px 15px',
+  padding: '10px 20px',
   borderRadius: '8px',
   fontWeight: 'bold' as const,
-  fontSize: '12px',
+  fontSize: '14px',
   cursor: 'pointer'
 };
 
