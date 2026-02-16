@@ -154,13 +154,11 @@ function App() {
     return base;
   }, [slots, currentArea]);
 
-  // --- 移動・入れ替えロジック完全復旧 ---
   const handleMove = async (toId: number) => {
     const sourceSlot = slots.find(s => s.id === moveSourceId);
     const targetSlot = slots.find(s => s.id === toId);
     if (!sourceSlot || !sourceSlot.car) return;
 
-    // もし移動先に車があればストック
     if (targetSlot?.car) {
       setPooledCar(targetSlot.car);
     }
@@ -404,14 +402,17 @@ function App() {
         </div>
       )}
 
-      {/* --- ストック表示（以前のデザインを完全再現） --- */}
+      {/* --- ストック表示（デザイン復元・修正版） --- */}
       {isMoveMode && pooledCar && (
-        <div style={floatingBarStyle}>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '10px', color: '#666' }}>ストック中:</span>
-            <span style={{ fontWeight: 'bold', color: '#007bff' }}>{pooledCar.name}</span>
+        <div style={stockBarStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={swapIconStyle}>🔄</div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '10px', color: '#856404', fontWeight: 'bold' }}>車両を保持中（入れ替え待機）</span>
+              <span style={{ fontWeight: 'bold', color: '#333', fontSize: '14px' }}>{pooledCar.name}</span>
+            </div>
           </div>
-          <button onClick={() => setPooledCar(null)} style={{ ...bulkDeleteButtonStyle, backgroundColor: '#666' }}>解除</button>
+          <button onClick={() => setPooledCar(null)} style={stockCancelButtonStyle}>中止</button>
         </div>
       )}
 
@@ -481,6 +482,7 @@ function App() {
   );
 }
 
+// --- スタイル定義 ---
 const loadingContainerStyle = { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#fff' };
 const logoWrapperStyle = { position: 'relative' as const, width: '180px', height: 'auto', display: 'flex', justifyContent: 'center' };
 const logoBaseStyle = { width: '180px', height: 'auto', display: 'block' };
@@ -489,8 +491,48 @@ const filterSelectStyle = { flex: 1, padding: '10px', borderRadius: '8px', borde
 const resetButtonStyle = { padding: '0 15px', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px' };
 const navButtonStyle = { flex: 1, padding: '12px 0', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '13px' };
 const forceUnlockButtonStyle = { position: 'absolute' as const, right: '15px', top: '50%', transform: 'translateY(-50%)', border: 'none', backgroundColor: 'transparent', color: '#ddd', fontSize: '18px' };
-const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #007bff' };
+const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #dc3545' };
 const bulkDeleteButtonStyle = { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold' };
+
+const stockBarStyle = {
+  position: 'fixed' as const,
+  bottom: '25px',
+  left: '50%',
+  transform: 'translateX(-50%)',
+  width: '92%',
+  maxWidth: '400px',
+  backgroundColor: '#fff3cd',
+  padding: '12px 18px',
+  borderRadius: '15px',
+  boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  zIndex: 2500,
+  border: '2px solid #ffeeba'
+};
+
+const swapIconStyle = {
+  fontSize: '20px',
+  backgroundColor: '#ffeeba',
+  width: '40px',
+  height: '40px',
+  borderRadius: '50%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
+};
+
+const stockCancelButtonStyle = {
+  backgroundColor: '#856404',
+  color: '#fff',
+  border: 'none',
+  padding: '8px 15px',
+  borderRadius: '8px',
+  fontWeight: 'bold' as const,
+  fontSize: '12px',
+  cursor: 'pointer'
+};
 
 const modalOverlayStyle = { 
   position: 'fixed' as const, 
