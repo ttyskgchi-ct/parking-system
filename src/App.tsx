@@ -157,18 +157,15 @@ function App() {
     return base;
   }, [slots, currentArea]);
 
-  // ★修正：移動先に車があればストックし、元いた場所は空にする
   const handleMove = async (toId: number) => {
     const sourceSlot = slots.find(s => s.id === moveSourceId);
     const targetSlot = slots.find(s => s.id === toId);
     if (!sourceSlot || !sourceSlot.car) return;
 
-    // 移動先に車がいれば、その車をストックへ退避
     if (targetSlot?.car) {
       setPooledCar(targetSlot.car);
     }
 
-    // 移動先へ配置
     await supabase.from('parking_slots').update({
       car_name: sourceSlot.car.name, customer_name: sourceSlot.car.customerName, color: sourceSlot.car.color, status: sourceSlot.car.status,
       plate: sourceSlot.car.plate, car_manager: sourceSlot.car.carManager,
@@ -178,7 +175,6 @@ function App() {
       editing_id: null, last_ping: null
     }).eq('id', toId);
 
-    // 元いた場所を空にする
     await supabase.from('parking_slots').update({
       car_name: null, customer_name: null, color: null, status: null, plate: null, car_manager: null, entry_manager: null, entry_date: null, memo: null, 
       is_battery_dead: false,
@@ -189,11 +185,9 @@ function App() {
     fetchSlots();
   };
 
-  // ★修正：ストック中の車を配置し、もし配置先に車があればさらに入れ替える
   const handlePlacePooledCar = async (toId: number) => {
     if (!pooledCar) return;
     const targetSlot = slots.find(s => s.id === toId);
-    
     const nextStock = targetSlot?.car ? targetSlot.car : null;
 
     await supabase.from('parking_slots').update({
@@ -294,8 +288,12 @@ function App() {
           ...diagonalStyle
         }}
       >
+        {/* バッテリー上がりインジケーター */}
         {!isEditing && slot.car?.isBatteryDead && (
-          <span style={{ position: 'absolute', top: '2px', right: '4px', fontSize: '14px', zIndex: 10 }}>⚡️</span>
+          <div style={{ position: 'absolute', top: '4px', left: '4px', display: 'flex', alignItems: 'center', gap: '2px', zIndex: 10 }}>
+             <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#dc3545' }}></div>
+             <span style={{ fontSize: '14px', lineHeight: '1' }}>⚡️</span>
+          </div>
         )}
 
         <span style={{ fontSize: '10px', color: '#888', marginBottom: '2px', position: 'relative', zIndex: 1 }}>{slot.label}</span>
@@ -424,7 +422,6 @@ function App() {
         </div>
       )}
 
-      {/* ★復元デザイン：ストック中の車両バー */}
       {isMoveMode && pooledCar && (
         <div style={stockBarStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -449,13 +446,14 @@ function App() {
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ お客様名</span><input type="text" value={formData.customerName} onChange={e => setFormData({...formData, customerName: e.target.value})} style={inputStyle} placeholder="様" /></div>
               <div style={fieldGroupStyle}><span style={labelStyle}>◻︎ 色</span><input type="text" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} style={inputStyle} /></div>
               
+              {/* バッテリー状態選択 */}
               <div style={fieldGroupStyle}>
                 <span style={labelStyle}>◻︎ バッテリー状態</span>
                 <div style={{ display: 'flex', gap: '20px', padding: '4px 0' }}>
                   <label style={{ display: 'flex', alignItems: 'center', fontSize: '15px' }}>
                     <input type="radio" checked={!formData.isBatteryDead} onChange={() => setFormData({...formData, isBatteryDead: false})} style={{ marginRight: '6px' }} /> 正常
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', fontSize: '15px', color: '#000'}}>
+                  <label style={{ display: 'flex', alignItems: 'center', fontSize: '15px' }}>
                     <input type="radio" checked={formData.isBatteryDead} onChange={() => setFormData({...formData, isBatteryDead: true})} style={{ marginRight: '6px' }} /> ⚡️上がり
                   </label>
                 </div>
@@ -529,7 +527,6 @@ const forceUnlockButtonStyle = { position: 'absolute' as const, right: '15px', t
 const floatingBarStyle = { position: 'fixed' as const, bottom: '25px', left: '50%', transform: 'translateX(-50%)', width: '92%', maxWidth: '400px', backgroundColor: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2000, border: '1px solid #dc3545' };
 const bulkDeleteButtonStyle = { backgroundColor: '#dc3545', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold' };
 
-// ★復元デザイン：ストックバー
 const stockBarStyle = {
   position: 'fixed' as const,
   bottom: '25px',
